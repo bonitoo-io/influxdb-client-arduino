@@ -231,6 +231,10 @@ bool InfluxDBClient::writePoint(Point & point) {
 }
 
 bool InfluxDBClient::writeRecord(String &record) {
+    if(!_wifiClient) {
+        init();
+    }
+
     _pointsBuffer[_bufferPointer] = record;
     _bufferPointer++;
     if(_bufferPointer == _bufferSize) {
@@ -244,7 +248,7 @@ bool InfluxDBClient::writeRecord(String &record) {
 }
 
 bool InfluxDBClient::checkBuffer() {
-    // in case we (over)reach batchSize with non full bufer
+    // in case we (over)reach batchSize with non full buffer
     bool bufferReachedBatchsize = !isBufferFull() && _bufferPointer - _batchPointer >= _batchSize;
     // or flush interval timed out
     bool flushTimeout = _flushInterval > 0 && (millis()/1000 - _lastFlushed) > _flushInterval; 
@@ -358,9 +362,6 @@ void InfluxDBClient::preRequest() {
 }
 
 int InfluxDBClient::postData(const char *data) {
-     if(!_wifiClient) {
-        init();
-    }
     if(data) {
         INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
         if(!_httpClient.begin(*_wifiClient, _writeUrl)) {
