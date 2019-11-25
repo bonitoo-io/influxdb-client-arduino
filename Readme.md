@@ -2,7 +2,8 @@
 
 Arduino client for writing and reading data from InfluxDB v2, local server or InfluxDB Cloud.Supports authentication, secure communication over TLS, batching and retrying.
 
-__Note: Under development__
+![Under Construction](res/under-construction.png "Image by Jose R. Cabello from Pixabay")
+
 
 <!--
 ## Batch writes
