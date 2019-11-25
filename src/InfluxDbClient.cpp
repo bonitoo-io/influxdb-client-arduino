@@ -51,21 +51,8 @@ void Point::addTag(String name, String value) {
     _tags += escapeValue(value);
 }
 
-void Point::addField(String name, float value) {
-   putField(name, String(value));
-}
-
-void Point::addField(String name, int value) {
-    putField(name, String(value)+"i");
-}
-
-
-void Point::addField(String name, String value) {
-    putField(name, "\"" + escapeValue(value) + "\"");
-}
-
-void Point::addField(String name, bool value) {
-     putField(name,value?"true":"false");
+void Point::addField(String name, String value) { 
+    putField(name, "\"" + escapeValue(value) + "\""); 
 }
 
 void Point::putField(String name, String value) {
@@ -130,10 +117,11 @@ InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const cha
     _bucket = bucket;
     _org = org;
     _authToken = authToken;
-    init(serverCert);
+    _certInfo = serverCert;
+    
 }
 
-void InfluxDBClient::init(const char *pstrCert) {
+void InfluxDBClient::init() {
     if(_serverUrl.endsWith("/")) {
         _serverUrl = _serverUrl.substring(0,_serverUrl.length()-1);
     }
@@ -142,27 +130,23 @@ void InfluxDBClient::init(const char *pstrCert) {
     if(https) {
 #if defined(ESP8266)         
         BearSSL::WiFiClientSecure *wifiClientSec = new BearSSL::WiFiClientSecure;
-#elif defined(ESP32)
-        WiFiClientSecure *wifiClientSec = new WiFiClientSecure;   
-#endif        
-        if(pstrCert && strlen_P(pstrCert) > 0) {
-#if defined(ESP8266) 
-            if(strlen_P(pstrCert) > 60 ) { //differentiate fingerprint and cert
-                _cert = new BearSSL::X509List(pstrCert); 
+        if(_certInfo && strlen_P(_certInfo) > 0) {
+            if(strlen_P(_certInfo) > 60 ) { //differentiate fingerprint and cert
+                _cert = new BearSSL::X509List(_certInfo); 
                 wifiClientSec->setTrustAnchors(_cert);
             } else {
-                wifiClientSec->setFingerprint(pstrCert);
+                wifiClientSec->setFingerprint(_certInfo);
             }
-#elif defined(ESP32)   
-            wifiClientSec->setCACert(pstrCert);
-#endif   
-        }
+         }
+#elif defined(ESP32)
+        WiFiClientSecure *wifiClientSec = new WiFiClientSecure;  
+        if(_certInfo && strlen_P(_certInfo) > 0) { 
+              wifiClientSec->setCACert(_certInfo);
+         }
+#endif    
         _wifiClient = wifiClientSec;
     } else {
         _wifiClient = new WiFiClient;
-#if defined(ESP8266) 
-        _cert = nullptr;
-#endif        
     }
     _pointsBuffer = new String[_bufferSize];
 }
@@ -215,34 +199,27 @@ void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSiz
 }
 
 bool InfluxDBClient::validateConnection() {
+    if(!_wifiClient) {
+        init();
+    }
     String url = _serverUrl + "/ready";
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
     if(!_httpClient.begin(*_wifiClient, url)) {
-        INFLUXDB_CLIENT_DEBUG("[E] begin failed");
+        INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
         return false;
     }
     _httpClient.addHeader(F("Accept"), F("application/json"));
     
-    int statusCode = _httpClient.GET();
+    _lastStatusCode = _httpClient.GET();
 
-#ifdef INFLUXDB_CLIENT_DEBUG     
-    INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", statusCode);
-    if(statusCode > 0) {               
-        String result = _httpClient.getString();
-        if(result.length() > 0) {
-           INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", result.c_str());
-        }
-    } else {
-        String result =  _httpClient.errorToString(statusCode);
-        if(result.length() > 0) {
-           INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", result.c_str());
-        }
-    }
-#endif //  INFLUXDB_CLIENT_DEBUG  
+   _lastErrorResponse = "";
+    
+    postRequest(200);
+
     _httpClient.end();
 
-    return statusCode == 200;
+    return _lastStatusCode == 200;
 }
 
 bool InfluxDBClient::writePoint(Point & point) {
@@ -322,14 +299,6 @@ bool InfluxDBClient::flushBuffer() {
     return success;
 }
 
-bool InfluxDBClient::isBufferFull() {
-    return _bufferCeiling == _bufferSize;
-}
-
-bool InfluxDBClient::isBufferEmpty() {
-    return _bufferPointer == 0;
-}
-
 char *InfluxDBClient::prepareBatch(int &size) {
     size = 0;
     int length = 0;
@@ -337,10 +306,10 @@ char *InfluxDBClient::prepareBatch(int &size) {
     uint16_t top = _batchPointer+_batchSize;
     INFLUXDB_CLIENT_DEBUG("[D] Prepare batch: bufferPointer: %d, batchPointer: %d, ceiling %d\n", _bufferPointer, _batchPointer, _bufferCeiling);
     if(top > _bufferCeiling ) {
-        // are we returning to the begging?
+        // are we returning to the begining?
         if(isBufferFull()) {
             top = top - _bufferCeiling;
-            // in case we are writing points in the begging of the buffer that have been overwritten, end on _bufferPointer
+            // in case we are writing points in the begining of the buffer that have been overwritten, end on _bufferPointer
             if(top > _bufferPointer) {
                 top = _bufferPointer;
             }
@@ -381,55 +350,37 @@ char *InfluxDBClient::prepareBatch(int &size) {
     return buff;
 }
 
+void InfluxDBClient::preRequest() {
+    _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
+    
+    const char * headerKeys[] = {RetryAfter} ;
+    _httpClient.collectHeaders(headerKeys, 1);
+}
+
 int InfluxDBClient::postData(const char *data) {
-    int statusCode = 0;
+     if(!_wifiClient) {
+        init();
+    }
     if(data) {
         INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
         if(!_httpClient.begin(*_wifiClient, _writeUrl)) {
             INFLUXDB_CLIENT_DEBUG("[E] Begin failed\n");
             return false;
         }
-        
-        _httpClient.addHeader(F("Accept"), F("application/json"));   
-        _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
-        
         INFLUXDB_CLIENT_DEBUG("[D] Sending:\n%s\n", data);       
-        
-        const char * headerKeys[] = {RetryAfter} ;
-        _httpClient.collectHeaders(headerKeys, 1);
-        
-        statusCode = _httpClient.POST((uint8_t*)data, strlen(data));
-        
-        _lastHTTPcode = statusCode;
-        _lastRequestTime = millis();
 
-        if(statusCode == 429 || statusCode == 503) { //retryable 
-            if(_httpClient.hasHeader(RetryAfter)) {
-                int retry = _httpClient.header(RetryAfter).toInt();
-                if(retry > 0 ) {
-                    _lastRetryAfter = retry;
-                }
-            }
-        } else {
-            _lastRetryAfter = 0;
-        }
-    #ifdef INFLUXDB_CLIENT_DEBUG      
-        INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", statusCode);
-        if(statusCode > 0) {
-            if(statusCode != 204) { // skip no data responses, HTTPClient::getString gets stuck on ESP32 in such case
-                String result = _httpClient.getString();
-                INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", result.c_str());
-            }
-        } else {
-            String result =  _httpClient.errorToString(statusCode);
-            if(result.length() > 0) {
-                INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", result.c_str());
-            }       
-        }
-    #endif //  INFLUXDB_CLIENT_DEBUG  
+        _httpClient.addHeader(F("Content-Type"), F("text/plain"));   
+        
+        preRequest();        
+        
+        _lastStatusCode = _httpClient.POST((uint8_t*)data, strlen(data));
+        
+        postRequest(204);
+
+        
         _httpClient.end();
     } 
-    return statusCode;
+    return _lastStatusCode;
 }
 
 static const char QueryDialect[] PROGMEM = "\
@@ -450,29 +401,42 @@ String InfluxDBClient::queryString(String &fluxQuery) {
         // retry after period didn't run out yet
         return "";
     }
+     if(!_wifiClient) {
+        init();
+    }
     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
-
     if(!_httpClient.begin(*_wifiClient, _queryUrl)) {
         INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
         return "";
     }
     _httpClient.addHeader(F("Content-Type"), F("application/json"));
-    _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
-
-    const char * headerKeys[] = {RetryAfter} ;
-    _httpClient.collectHeaders(headerKeys, 1);
-
-    String body = "{\"type\":\"flux\",";
-    body += "\"query\":\"" + escapeJSONString(fluxQuery) + "\",";
-    body += QueryDialect;
+    
+    String body = "{\"type\":\"flux\",\"query\":\"";
+    body += escapeJSONString(fluxQuery) + "\",";
+    body += FPSTR(QueryDialect);
 
     INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", body.c_str());
+    
+    preRequest();
 
-    int statusCode = _httpClient.POST(body);
-    _lastHTTPcode = statusCode;
+    _lastStatusCode = _httpClient.POST(body);
+    
+    postRequest(200);
+    String queryResult;
+    if(_lastStatusCode == 200) {
+        queryResult = _httpClient.getString();
+        INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", queryResult.c_str());
+    }
+
+    _httpClient.end();
+
+    return queryResult;
+}
+
+void InfluxDBClient::postRequest(int expectedStatusCode) {
     _lastRequestTime = millis();
-
-    if(statusCode == 429 || statusCode == 503) { //retryable 
+     INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", _lastStatusCode);
+    if(_lastStatusCode == 429 || _lastStatusCode == 503) { //retryable 
         if(_httpClient.hasHeader(RetryAfter)) {
             int retry = _httpClient.header(RetryAfter).toInt();
             if(retry > 0 ) {
@@ -482,40 +446,26 @@ String InfluxDBClient::queryString(String &fluxQuery) {
     } else {
         _lastRetryAfter = 0;
     }
-    INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", statusCode);
-    String response;
-    if(statusCode == 200) {               
-        response = _httpClient.getString();
-        INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", response.c_str());
-    } 
-#ifdef INFLUXDB_CLIENT_DEBUG
-    if(statusCode != 200) {
-        if(statusCode > 0) {
-            String result = _httpClient.getString();
-            if(result.length() > 0) {
-                INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", result.c_str());
-            }
+    _lastErrorResponse = "";
+    if(_lastStatusCode != expectedStatusCode) {
+        if(_lastStatusCode > 0) {
+            _lastErrorResponse = _httpClient.getString();
+            INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", _lastErrorResponse.c_str());
         } else {
-            String result =  _httpClient.errorToString(statusCode);
-            if(result.length() > 0) {
-                INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", result.c_str());
-            }
+            _lastErrorResponse = _httpClient.errorToString(_lastStatusCode);
+            INFLUXDB_CLIENT_DEBUG("[E] Error - %s\n", _lastErrorResponse.c_str());
         }
     }
-#endif //  INFLUXDB_CLIENT_DEBUG  
-    _httpClient.end();
-
-    return response;
 }
 
 static String escapeKey(String key) {
     String ret;
     ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,
     
-//    for (char c: key)
-    for(int i=0;i<key.length();i++) 
+    for (char c: key)
+    //for(int i=0;i<key.length();i++) 
     {
-        char c = key[i];
+        //char c = key[i];
         switch (c)
         {
             case ' ':
@@ -533,10 +483,10 @@ static String escapeKey(String key) {
 static String escapeValue(String value) {
     String ret;
     ret.reserve(value.length()+5); //5 is estimate of max chars needs to escape,
-    //for (char c: value)
-    for(int i=0;i<value.length();i++) 
+    for (char c: value)
+    //for(int i=0;i<value.length();i++) 
     {
-        char c = value[i];
+        //char c = value[i];
         switch (c)
         {
             case '\\':
@@ -562,10 +512,10 @@ static String escapeJSONString(String &value) {
         from = i+1;
     }
     ret.reserve(value.length()+d); //most probably we will escape just double quotes
-    //for (char c: value)
-    for(int i=0;i<value.length();i++) 
+    for (char c: value)
+    //for(int i=0;i<value.length();i++) 
     {
-        char c = value[i];
+      //  char c = value[i];
         switch (c)
         {
             case '"': ret += "\\\""; break;
