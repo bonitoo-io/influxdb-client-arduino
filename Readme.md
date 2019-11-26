@@ -1,6 +1,6 @@
 # InfluxDB v2 Arduino Client
 
-Simple Arduino client for writing and reading data from [InfluxDB 2](https://v2.docs.influxdata.com/v2.0/), local server or InfluxDB Cloud. Supports authentication, secure communication over TLS, batching and retrying.
+Simple Arduino client for writing and reading data from [InfluxDB 2](https://v2.docs.influxdata.com/v2.0/), doens't matter if a local server or InfluxDB Cloud. Supports authentication, secure communication over TLS, batching and automatic retrying.
 
 ## Basic Code
 Using client is very easy. After you've [setup InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and client instance:
@@ -18,7 +18,7 @@ Using client is very easy. After you've [setup InfluxDB 2 server](https://v2.doc
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 ```
 
-Next step is to add data. Single data row is reprented by the `Point` class. It consists of measurement name (like a table name), tags (which labels data) and fields (values to store):
+Next step is to add data. Single data row is represented by the `Point` class. It consists of measurement name (like a table name), tags (which labels data) and fields (values to store):
 ```cpp
 // Define data point with measurement name 'device_status`
 Point pointDevice("device_status");
@@ -30,7 +30,7 @@ pointDevice.addField("rssi", WiFi.RSSI());
 pointDevice.addField("uptime", millis());
 ```
 
-And finally write data:
+And finally we will write data to db:
 ```cpp
 // Write data
 client.writePoint(pointDevice);
@@ -45,9 +45,7 @@ Instead of seting up local InfluxDB 2 server, you can quickly [start with Influx
 
 Connecting arduino client to InfuxDBCloud server requires few additional steps.
 InfluxDBCloud uses secure communication (https) and we need to tell client to trust this connection.
-Connection parameteres is almoost the same as above, only difference is that server url now points to the InfluxDB Cloud 2.0 where you got after subcription. You will find correct URL in  `InfluxDB UI -> Load Data -> Client Libraries`.
-
-
+Connection parameters are almoost the same as above, only difference is that server url now points to the InfluxDB Cloud 2.0, where you've got after you've created subcription. You will find correct URL in  `InfluxDB UI -> Load Data -> Client Libraries`.
 ```cpp
 // InfluxDB v2 server or cloud url, e.g. https://eu-central-1-1.aws.cloud2.influxdata.com(Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
