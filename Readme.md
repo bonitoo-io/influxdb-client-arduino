@@ -1,8 +1,8 @@
-# InfluxDB v2 Arduino Client
+# InfluxDB 2 Arduino Client
 
-Simple Arduino client for writing and reading data from [InfluxDB 2](https://v2.docs.influxdata.com/v2.0/), doens't matter if a local server or InfluxDB Cloud. Supports authentication, secure communication over TLS, batching and automatic retrying.
+Simple Arduino client for writing and reading data from [InfluxDB 2](https://v2.docs.influxdata.com/v2.0/), it doens't matter whether a local server or InfluxDB Cloud. Supports authentication, secure communication over TLS, batching and automatic retrying.
 
-## Basic Code
+## Basic code
 Using client is very easy. After you've [setup InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and client instance:
 ```cpp
 // InfluxDB v2 server url, e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries)
@@ -38,16 +38,16 @@ client.writePoint(pointDevice);
 
 Now you will able to see data in the InfluxDB UI. You can use  `Data Explorer` or create a `Dashboard`.
 
-Complete code is available in [BasicWrite example](examples/BasicWrite/BasicWrite.ino).
+Complete source code is available in [BasicWrite example](examples/BasicWrite/BasicWrite.ino).
 
 ## Connecting to InfluxDB Cloud 2
-Instead of seting up local InfluxDB 2 server, you can quickly [start with InfluxDB Cloud 2](https://v2.docs.influxdata.com/v2.0/cloud/get-started/) with [Free Plan](https://v2.docs.influxdata.com/v2.0/cloud/pricing-plans/#free-plan)
+Instead of seting up local InfluxDB 2 server, you can quickly [start with InfluxDB Cloud 2](https://v2.docs.influxdata.com/v2.0/cloud/get-started/) with [Free Plan](https://v2.docs.influxdata.com/v2.0/cloud/pricing-plans/#free-plan).
 
 Connecting arduino client to InfuxDBCloud server requires few additional steps.
 InfluxDBCloud uses secure communication (https) and we need to tell client to trust this connection.
-Connection parameters are almoost the same as above, only difference is that server url now points to the InfluxDB Cloud 2.0, where you've got after you've created subcription. You will find correct URL in  `InfluxDB UI -> Load Data -> Client Libraries`.
+Connection parameters are almoost the same as above, only difference is that server url now points to the InfluxDB Cloud 2, where you've got after you've finished creating InfluxDB Cloud 2 subcription. You will find correct server URL in  `InfluxDB UI -> Load Data -> Client Libraries`.
 ```cpp
-// InfluxDB v2 server or cloud url, e.g. https://eu-central-1-1.aws.cloud2.influxdata.com(Use: InfluxDB UI -> Load Data -> Client Libraries)
+// InfluxDB v2 server or cloud url, e.g. https://eu-central-1-1.aws.cloud2.influxdata.com (Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
 // InfluxDB v2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
 #define INFLUXDB_TOKEN "token"
@@ -74,7 +74,7 @@ We need to pass  additional parameter to client constructor, which is certificat
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
 ```
 
-Defining data and writing it to the db is the same:
+Defining data and writing it to the db is the same as in case of [BasicWrite](#basic-code):
 ```cpp
 // Define data point with measurement name 'device_status`
 Point pointDevice("device_status");
@@ -88,7 +88,7 @@ pointDevice.addField("uptime", millis());
 // Write data
 client.writePoint(pointDevice);
 ```
-Complete code is available in [SecureWrite example](examples/SecureWrite/SecureWrite.ino)
+Complete source code is available in [SecureWrite example](examples/SecureWrite/SecureWrite.ino).
 
 ![Under Construction](res/under-construction.png "Image by Jose R. Cabello from Pixabay")
 
