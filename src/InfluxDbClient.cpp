@@ -118,7 +118,7 @@ InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const cha
     _org = org;
     _authToken = authToken;
     _certInfo = serverCert;
-    
+    _pointsBuffer = new String[_bufferSize];
 }
 
 void InfluxDBClient::init() {
@@ -148,7 +148,6 @@ void InfluxDBClient::init() {
     } else {
         _wifiClient = new WiFiClient;
     }
-    _pointsBuffer = new String[_bufferSize];
 }
 
 InfluxDBClient::~InfluxDBClient() {
@@ -231,10 +230,6 @@ bool InfluxDBClient::writePoint(Point & point) {
 }
 
 bool InfluxDBClient::writeRecord(String &record) {
-    if(!_wifiClient) {
-        init();
-    }
-
     _pointsBuffer[_bufferPointer] = record;
     _bufferPointer++;
     if(_bufferPointer == _bufferSize) {
@@ -362,6 +357,9 @@ void InfluxDBClient::preRequest() {
 }
 
 int InfluxDBClient::postData(const char *data) {
+    if(!_wifiClient) {
+        init();
+    }
     if(data) {
         INFLUXDB_CLIENT_DEBUG("[D] Writing to %s\n", _writeUrl.c_str());
         if(!_httpClient.begin(*_wifiClient, _writeUrl)) {
@@ -402,7 +400,7 @@ String InfluxDBClient::queryString(String &fluxQuery) {
         // retry after period didn't run out yet
         return "";
     }
-     if(!_wifiClient) {
+    if(!_wifiClient) {
         init();
     }
     INFLUXDB_CLIENT_DEBUG("[D] Query to %s\n", _queryUrl.c_str());
