@@ -49,11 +49,11 @@ class Point {
     void addField(String name, bool value)          { putField(name,value?"true":"false"); }
     void addField(String name, String value);
     // Set timestamp to `now()` and store it in specified precision. Date and time must be already set. See `configTime` in API
-    void  setTime(WritePrecision writePrecision);
+    void setTime(WritePrecision writePrecision);
     // Set timestamp in desired precision (specified in InfluxDBClient) since epoch (1.1.1970 00:00:00)
-    void  setTime(unsigned long timestamp);
+    void setTime(unsigned long timestamp);
     // Set timestamp in desired precision (specified in InfluxDBClient) since epoch (1.1.1970 00:00:00)
-    void  setTime(String timestamp);
+    void setTime(String timestamp);
     // Clear all fields. Usefull for reusing point  
     void clearFields();
     // Clear tags
@@ -127,6 +127,7 @@ class InfluxDBClient {
     int getLastStatusCode() const { return _lastStatusCode;  }
     // Returns last response when operation failed
     String getLastErrorMessage() const { return _lastErrorResponse; }
+    String getServerUrl() const { return _serverUrl; }
   protected:
     // Checks params and sets up security, if needed
     void init();
