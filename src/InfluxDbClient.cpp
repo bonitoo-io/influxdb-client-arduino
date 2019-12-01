@@ -151,10 +151,14 @@ void InfluxDBClient::init() {
 }
 
 InfluxDBClient::~InfluxDBClient() {
-    if(_wifiClient) {
-        delete _wifiClient;
-        _wifiClient = nullptr;
+    if(_pointsBuffer) {
+        delete [] _pointsBuffer;
+        _pointsBuffer = nullptr;
     }
+    // if(_wifiClient) {
+    //     delete _wifiClient;
+    //     _wifiClient = nullptr;
+    // }
 #if defined(ESP8266)     
     if(_cert) {
         delete _cert;
@@ -197,32 +201,9 @@ void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSiz
     _httpClient.setReuse(preserveConnection);
 }
 
-bool InfluxDBClient::validateConnection() {
-    if(!_wifiClient) {
-        init();
-    }
-    String url = _serverUrl + "/ready";
-    INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
-
-    if(!_httpClient.begin(*_wifiClient, url)) {
-        INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
-        return false;
-    }
-    _httpClient.addHeader(F("Accept"), F("application/json"));
-    
-    _lastStatusCode = _httpClient.GET();
-
-   _lastErrorResponse = "";
-    
-    postRequest(200);
-
-    _httpClient.end();
-
-    return _lastStatusCode == 200;
-}
-
 bool InfluxDBClient::writePoint(Point & point) {
     if (point.hasFields()) {
+        //TODO: addtimestamp if configured and not set
         String line = point.toLineProtocol();
         return writeRecord(line);
     }
@@ -238,6 +219,10 @@ bool InfluxDBClient::writeRecord(String &record) {
     } 
     if(_bufferCeiling < _bufferSize) {
         _bufferCeiling++;
+    }
+    if(isBufferFull() && _batchPointer < _bufferPointer) {
+        // When we are overwriting buffer and nothing is written, batchPointer must point to the oldest point
+        _batchPointer = _bufferPointer;
     }
     return checkBuffer();
 }
@@ -279,9 +264,11 @@ bool InfluxDBClient::flushBuffer() {
             if(_batchPointer >= _bufferSize) {
                 // restart _batchPointer in ring buffer from start
                 _batchPointer = _batchPointer - _bufferSize;
+                // we reached buffer size, that means buffer was full an
+                _bufferCeiling = _bufferPointer;
             }
         } else {
-            INFLUXDB_CLIENT_DEBUG("[D] Leaving data in buffer for retry");
+            INFLUXDB_CLIENT_DEBUG("[D] Leaving data in buffer for retry\n");
             // in case of retryable failure break loop
             break;
         }
@@ -289,11 +276,13 @@ bool InfluxDBClient::flushBuffer() {
         delay(1);
     }
     //Have we emptied the buffer?
-    if(_batchPointer == _bufferPointer) {
-        _bufferPointer = 0;
-        _batchPointer = 0;
-        _bufferCeiling = 0;
-        INFLUXDB_CLIENT_DEBUG("[D] Buffer empty\n");
+    if(success) {
+        if(_batchPointer == _bufferPointer) {
+            _bufferPointer = 0;
+            _batchPointer = 0;
+            _bufferCeiling = 0;
+            INFLUXDB_CLIENT_DEBUG("[D] Buffer empty\n");
+        }
     }
     return success;
 }
@@ -347,6 +336,30 @@ char *InfluxDBClient::prepareBatch(int &size) {
         }
     }
     return buff;
+}
+
+bool InfluxDBClient::validateConnection() {
+    if(!_wifiClient) {
+        init();
+    }
+    String url = _serverUrl + "/ready";
+    INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
+
+    if(!_httpClient.begin(*_wifiClient, url)) {
+        INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
+        return false;
+    }
+    _httpClient.addHeader(F("Accept"), F("application/json"));
+    
+    _lastStatusCode = _httpClient.GET();
+
+   _lastErrorResponse = "";
+    
+    postRequest(200);
+
+    _httpClient.end();
+
+    return _lastStatusCode == 200;
 }
 
 void InfluxDBClient::preRequest() {
@@ -462,9 +475,7 @@ static String escapeKey(String key) {
     ret.reserve(key.length()+5); //5 is estimate of  chars needs to escape,
     
     for (char c: key)
-    //for(int i=0;i<key.length();i++) 
     {
-        //char c = key[i];
         switch (c)
         {
             case ' ':
@@ -483,9 +494,7 @@ static String escapeValue(String value) {
     String ret;
     ret.reserve(value.length()+5); //5 is estimate of max chars needs to escape,
     for (char c: value)
-    //for(int i=0;i<value.length();i++) 
     {
-        //char c = value[i];
         switch (c)
         {
             case '\\':
@@ -512,9 +521,7 @@ static String escapeJSONString(String &value) {
     }
     ret.reserve(value.length()+d); //most probably we will escape just double quotes
     for (char c: value)
-    //for(int i=0;i<value.length();i++) 
     {
-      //  char c = value[i];
         switch (c)
         {
             case '"': ret += "\\\""; break;
