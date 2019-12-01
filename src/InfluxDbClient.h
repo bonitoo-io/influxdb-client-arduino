@@ -119,7 +119,7 @@ class InfluxDBClient {
     // Returns true if points buffer is full. Usefull when server is overloaded and we may want increase period of write points or decrease number of points
     bool isBufferFull() const  { return _bufferCeiling == _bufferSize; };
     // Returns true if buffer is empty. Usefull when going to sleep and check if there is sth in write buffer (it can happens when batch size if bigger than 1). Call flushBuffer() then.
-    bool isBufferEmpty() const { return _bufferPointer == 0;};
+    bool isBufferEmpty() const { return _bufferCeiling == 0; };
     // Checks points buffer status and flushes if number of points reached batch size or flush interval run out
     // Returns true if successful, false in case of any error 
     bool checkBuffer();
@@ -184,6 +184,14 @@ class InfluxDBClient {
     int postData(const char *data);
     char *prepareBatch(int &size);
     void setUrls();
+#ifdef INFLUXDB_CLIENT_TESTING
+public:
+    String *getBuffer() { return _pointsBuffer; }
+    void setServerUrl(const char *serverUrl) {
+      _serverUrl = serverUrl;
+      setUrls();
+    }
+#endif         
 };
 
 
