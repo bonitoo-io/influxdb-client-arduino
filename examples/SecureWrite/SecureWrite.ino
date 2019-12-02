@@ -6,9 +6,9 @@
  *  - unsecured http://...
  *  - secure https://... (appropriate certificate is required)
  *  - InfluxDB 2 Cloud at https://cloud2.influxdata.com/ (certificate is preconfigured)
- * Measures signal level of all visible WiFi networks including signal level of the actually connected one
- * This example demonstrates time handling, how to write measures with different priorities, batching and retry
- * Data can be immediately seen in a InfluxDB 2 Cloud UI - measurements wifi_status and wifi_networks
+ * Measures signal level of the actually connected WiFi network
+ * This example demonstrates time handling, secure connection and measurement writing into InfluxDB
+ * Data can be immediately seen in a InfluxDB 2 Cloud UI - measurement wifi_status
  **/
 
 #if defined(ESP32)
@@ -37,8 +37,7 @@
 // InfluxDB v2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
 #define INFLUXDB_BUCKET "bucket name"
 
-
-// Timezone string according to https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
+// Set timezone string according to https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
 // Examples:
 //  Pacific Time: "PST8PDT"
 //  Eastern: "EST5EDT"
@@ -50,10 +49,7 @@
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
 
 // Data point
-Point sensorStatus("wifi_status");
-
-// Number for loops to sync time using NTP
-int iterations = 0;
+Point sensor("wifi_status");
 
 void timeSync() {
   // Synchronize UTC time with NTP servers
@@ -93,8 +89,8 @@ void setup() {
   Serial.println();
 
   // Add tags
-  sensorStatus.addTag("device", DEVICE);
-  sensorStatus.addTag("SSID", WiFi.SSID());
+  sensor.addTag("device", DEVICE);
+  sensor.addTag("SSID", WiFi.SSID());
 
   // Sync time for certificate validation
   timeSync();
@@ -107,67 +103,20 @@ void setup() {
     Serial.print("InfluxDB connection failed: ");
     Serial.println(client.getLastErrorMessage());
   }
-
-  //Enable messages batching and retry buffer
-  client.setWriteOptions( WritePrecision::S, 10, 30);
 }
 
 void loop() {
-  // Sync time for batching once per hour
-  if (iterations++ >= 360) {
-    timeSync();
-    iterations = 0;
-  }
-
-  //Report networks (low priority data) just in case we successfully wrote the previous batch
-  if (client.isBufferEmpty()) {
-    // Report all the detected wifi networks
-    Point sensorNetworks("wifi_networks");
-    int networks = WiFi.scanNetworks();
-    //Set identical time for the whole network scan
-    time_t tnow = time(nullptr);
-    for (int i = 0; i < networks; i++) {
-      sensorNetworks.addTag("device", DEVICE);
-      sensorNetworks.addTag("SSID", WiFi.SSID(i));
-      sensorNetworks.addTag("channel", String(WiFi.channel(i)));
-      sensorNetworks.addTag("open", String(WiFi.encryptionType(i) == WIFI_AUTH_OPEN));
-      sensorNetworks.addField("rssi", WiFi.RSSI(i));
-      sensorNetworks.setTime(tnow);
-
-      // Print what are we exactly writing
-      Serial.print("Writing: ");
-      Serial.println(sensorNetworks.toLineProtocol());
-
-      // Write point - low priority measures
-      client.writePoint(sensorNetworks);
-
-      // Clear tags and fields for the next use
-      sensorNetworks.clearTags();
-      sensorNetworks.clearFields();
-    }
-  } else
-    Serial.println("Wifi networks reporting skipped due to communication issues");
-
+  // Store measured value into point
+  sensor.clearFields();
   // Report RSSI of currently connected network
-  sensorStatus.setTime(time(nullptr));
-  sensorStatus.addField("rssi", WiFi.RSSI());
-
+  sensor.addField("rssi", WiFi.RSSI());
   // Print what are we exactly writing
   Serial.print("Writing: ");
-  Serial.println(sensorStatus.toLineProtocol());
-
-  // Write point 0 high priority measure
-  client.writePoint(sensorStatus);
-
-  // Clear fields for next usage. Tags remain the same.
-  sensorStatus.clearFields();
-
-  // End of the iteration - force write of all the values into InfluxDB as single transaction
-  if (!client.flushBuffer()) {
-    Serial.print("InfluxDB flush failed: ");
+  Serial.println(sensor.toLineProtocol());
+  // Write point
+  if(!client.writePoint(sensor)) {
+    Serial.print("InfluxDB write failed: ");
     Serial.println(client.getLastErrorMessage());
-    Serial.print("Full buffer: ");
-    Serial.println(client.isBufferFull() ? "Yes" : "No");
   }
 
   //Wait 10s
