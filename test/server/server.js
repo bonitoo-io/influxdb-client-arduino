@@ -1,5 +1,7 @@
 const express = require('express');
 const readline = require('readline');
+var os = require('os');
+
 const app = express();
 const port = 999;
 var pointsdb = []; 
@@ -29,14 +31,14 @@ app.post('/api/v2/write', (req,res) => {
             if(point.tags.hasOwnProperty('direction')) {
                 switch(point.tags.direction) {
                     case '429-1':
-                        res.set("Reply-After","30");
+                        res.set("Retry-After","30");
                         res.status(429).send("Limit exceeded"); 
                         break;
                     case '429-2':
                          res.status(429).send("Limit exceeded"); 
                         break;
                     case '503-1':
-                        res.set("Reply-After","10");
+                        res.set("Retry-After","10");
                         res.status(503).send("Server overloaded"); 
                         break;
                     case '503-2':
@@ -48,19 +50,24 @@ app.post('/api/v2/write', (req,res) => {
                         res.status(204).end(); 
                         break;                        
                 }
-            } else {
-                console.log("write " + points.length + ' points');
-                points.forEach((item, index) => {
-                    pointsdb.push(item);
-                })
-
+                points.shift();
             }
+            console.log("write " + points.length + ' points');
+            points.forEach((item, index) => {
+                pointsdb.push(item);
+            })
             res.status(204).end();
         } else {
             res.status(204).end();
         }
     }
 })
+
+app.post('/api/v2/delete', (req,res) => {
+    console.log('Deleteting points');
+    pointsdb = [];
+    res.status(204).end(); 
+});
 
 app.post('/api/v2/query', (req,res) => {
     if(checkQueryParams(req, res) && handleAuthentication(req, res)) {
@@ -82,6 +89,28 @@ rl.on('line', function(line) {
 });
 
 var server = app.listen(port)
+var ifaces = os.networkInterfaces();
+
+console.log("Available interfaces:")
+Object.keys(ifaces).forEach(function (ifname) {
+  var alias = 0;
+
+  ifaces[ifname].forEach(function (iface) {
+    if ('IPv4' !== iface.family || iface.internal !== false) {
+      // skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
+      return;
+    }
+
+    if (alias >= 1) {
+      // this single interface has multiple ipv4 addresses
+      console.log('  ', ifname + ':' + alias, iface.address);
+    } else {
+      // this interface has only one ipv4 adress
+      console.log('  ', ifname, iface.address);
+    }
+    ++alias;
+  });
+});
 console.log(`Listening on http://${server.address().address}:${server.address().port}`)
 console.log(`Press Enter to exit`)
 
