@@ -47,7 +47,8 @@ class Point {
     void addField(String name, long value)          { putField(name, String(value)+"i"); }
     void addField(String name, unsigned long value) { putField(name, String(value)+"i"); }
     void addField(String name, bool value)          { putField(name,value?"true":"false"); }
-    void addField(String name, String value);
+    void addField(String name, String value)        { addField(name, value.c_str()); }
+    void addField(String name, const char *value);
     // Set timestamp to `now()` and store it in specified precision. Date and time must be already set. See `configTime` in API
     void setTime(WritePrecision writePrecision);
     // Set timestamp in desired precision (specified in InfluxDBClient) since epoch (1.1.1970 00:00:00)
@@ -62,6 +63,8 @@ class Point {
     bool hasFields() const { return _fields.length() > 0; }
     // True if a point contains at least one tag
     bool hasTags() const   { return _tags.length() > 0; }
+     // True if a point contains timestamp
+    bool hasTime() const   { return _timestamp.length() > 0; }
     // Creates line protocol
     String toLineProtocol();
   private:
@@ -123,6 +126,8 @@ class InfluxDBClient {
     // Checks points buffer status and flushes if number of points reached batch size or flush interval run out
     // Returns true if successful, false in case of any error 
     bool checkBuffer();
+    // Wipes out buffered points
+    void resetBuffer();
     // Returns HTTP status of last request to server. Usefull for advanced handling of failures.
     int getLastStatusCode() const { return _lastStatusCode;  }
     // Returns last response when operation failed

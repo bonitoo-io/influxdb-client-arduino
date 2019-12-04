@@ -15,7 +15,7 @@
 static const char RetryAfter[] = "Retry-After";
 
 static String escapeKey(String key);
-static String escapeValue(String value);
+static String escapeValue(const char *value);
 static String escapeJSONString(String &value);
 
 static String precisionToString(WritePrecision precision) {
@@ -48,10 +48,10 @@ void Point::addTag(String name, String value) {
     }
     _tags += escapeKey(name);
     _tags += '=';
-    _tags += escapeValue(value);
+    _tags += escapeValue(value.c_str());
 }
 
-void Point::addField(String name, String value) { 
+void Point::addField(String name, const char *value) { 
     putField(name, "\"" + escapeValue(value) + "\""); 
 }
 
@@ -73,9 +73,13 @@ String Point::toLineProtocol() {
 }
 
 void  Point::setTime(WritePrecision precision) {
-    static char buff[7];
+    static char buff[10];
     time_t now = time(nullptr);
     switch(precision) {
+        case WritePrecision::NS:
+             sprintf(buff, "%06d000",  micros()%1000000uL);
+            _timestamp = String(now) + buff;
+            break;
         case WritePrecision::US:
              sprintf(buff, "%06d",  micros()%1000000uL);
             _timestamp = String(now) + buff;
@@ -148,6 +152,7 @@ void InfluxDBClient::init() {
     } else {
         _wifiClient = new WiFiClient;
     }
+    _httpClient.setReuse(false);
 }
 
 InfluxDBClient::~InfluxDBClient() {
@@ -189,21 +194,24 @@ void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSiz
             _bufferSize = 2*_batchSize;
             INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", _bufferSize);
         }
-        if(_pointsBuffer) {
-            delete [] _pointsBuffer;
-        }
-        _pointsBuffer = new String[_bufferSize];
-        _bufferPointer = 0;
-        _batchPointer = 0;
-        _bufferCeiling = 0;
+        resetBuffer();
     }
     _flushInterval = flushInterval;
     _httpClient.setReuse(preserveConnection);
 }
 
+void InfluxDBClient::resetBuffer() {
+    if(_pointsBuffer) {
+        delete [] _pointsBuffer;
+    }
+    _pointsBuffer = new String[_bufferSize];
+    _bufferPointer = 0;
+    _batchPointer = 0;
+    _bufferCeiling = 0;
+}
+
 bool InfluxDBClient::writePoint(Point & point) {
     if (point.hasFields()) {
-        //TODO: addtimestamp if configured and not set
         String line = point.toLineProtocol();
         return writeRecord(line);
     }
@@ -216,6 +224,10 @@ bool InfluxDBClient::writeRecord(String &record) {
     if(_bufferPointer == _bufferSize) {
         _bufferPointer = 0;
         INFLUXDB_CLIENT_DEBUG("[W] Reached buffer size, old points will be overwritten\n");
+        if(isBufferFull()) {
+            //if already isBufferFull
+            _batchPointer = 0;
+        }
     } 
     if(_bufferCeiling < _bufferSize) {
         _bufferCeiling++;
@@ -231,7 +243,7 @@ bool InfluxDBClient::checkBuffer() {
     // in case we (over)reach batchSize with non full buffer
     bool bufferReachedBatchsize = !isBufferFull() && _bufferPointer - _batchPointer >= _batchSize;
     // or flush interval timed out
-    bool flushTimeout = _flushInterval > 0 && (millis()/1000 - _lastFlushed) > _flushInterval; 
+    bool flushTimeout = _flushInterval > 0 && _lastFlushed > 0 && (millis()/1000 - _lastFlushed) > _flushInterval; 
 
     if(bufferReachedBatchsize || flushTimeout || isBufferFull() ) {
         INFLUXDB_CLIENT_DEBUG("[D] Flushing buffer: is oversized %s, is timeout %s, is buffer full %s\n", bufferReachedBatchsize?"true":"false",flushTimeout?"true":"false", isBufferFull()?"true":"false");
@@ -272,8 +284,7 @@ bool InfluxDBClient::flushBuffer() {
             // in case of retryable failure break loop
             break;
         }
-        //small delay between batches
-        delay(1);
+       yield();
     }
     //Have we emptied the buffer?
     if(success) {
@@ -318,6 +329,7 @@ char *InfluxDBClient::prepareBatch(int &size) {
             if(i == _bufferSize) {
                 i = 0;
             }
+            yield();
         }
         //create buffer for all lines including new line char and terminating char
         buff = new char[length + size + 1];
@@ -330,6 +342,7 @@ char *InfluxDBClient::prepareBatch(int &size) {
                 if(i == _bufferSize) {
                     i = 0;
                 }
+                yield();
             }
         } else {
             size = 0;
@@ -449,11 +462,16 @@ void InfluxDBClient::postRequest(int expectedStatusCode) {
     _lastRequestTime = millis();
      INFLUXDB_CLIENT_DEBUG("[D] HTTP status code - %d\n", _lastStatusCode);
     if(_lastStatusCode == 429 || _lastStatusCode == 503) { //retryable 
+        int retry = 0;
         if(_httpClient.hasHeader(RetryAfter)) {
-            int retry = _httpClient.header(RetryAfter).toInt();
+            retry = _httpClient.header(RetryAfter).toInt();
             if(retry > 0 ) {
                 _lastRetryAfter = retry;
+                 INFLUXDB_CLIENT_DEBUG("[D] Reply after - %d\n", _lastRetryAfter);
             }
+        }
+        if(retry == 0) {
+            _lastRetryAfter = 60;
         }
     } else {
         _lastRetryAfter = 0;
@@ -490,12 +508,13 @@ static String escapeKey(String key) {
     return ret;
 }
 
-static String escapeValue(String value) {
+static String escapeValue(const char *value) {
     String ret;
-    ret.reserve(value.length()+5); //5 is estimate of max chars needs to escape,
-    for (char c: value)
+    int len = strlen_P(value);
+    ret.reserve(len+5); //5 is estimate of max chars needs to escape,
+    for(int i=0;i<len;i++)
     {
-        switch (c)
+        switch (value[i])
         {
             case '\\':
             case '\"':
@@ -503,7 +522,7 @@ static String escapeValue(String value) {
                 break;
         }
 
-        ret += c;
+        ret += value[i];
     }
     return ret;
 }
