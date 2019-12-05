@@ -80,6 +80,7 @@ void testPoint() {
   String testLine = "test,tag1=tagvalue field1=23i,field2=true,field3=1.12,field4=\"texttest\"";
   TEST_ASSERTM(line == testLine,line);
   
+  TEST_ASSERT(!p.hasTime());
   time_t now = time(nullptr);
   p.setTime(now);   
   String testLineTime = testLine + " " + now;
@@ -102,11 +103,13 @@ void testPoint() {
   delete [] parts;
 
   p.setTime(WritePrecision::MS);
+  TEST_ASSERT(p.hasTime());
   line = p.toLineProtocol();
   parts = getParts(line, ' ', partsCount);
   TEST_ASSERT(partsCount == 3);
   TEST_ASSERT(parts[2].length() == nowStr.length()+3);
   delete [] parts;
+  
 
   p.setTime(WritePrecision::US);
   line = p.toLineProtocol();
@@ -115,13 +118,24 @@ void testPoint() {
   TEST_ASSERT(parts[2].length() == nowStr.length()+6);
   delete [] parts;
 
-   p.setTime(WritePrecision::NS);
+  p.setTime(WritePrecision::NS);
   line = p.toLineProtocol();
   parts = getParts(line, ' ', partsCount);
   TEST_ASSERT(partsCount == 3);
   TEST_ASSERT(parts[2].length() == nowStr.length()+9);
   delete [] parts;
 
+  p.clearFields();
+  TEST_ASSERT(!p.hasFields());
+  p.clearTags();
+  TEST_ASSERT(!p.hasFields());
+  p.setTime("");
+  TEST_ASSERT(!p.hasTime());
+
+  p.addField("nan", (float)NAN);
+  TEST_ASSERT(!p.hasFields());
+  p.addField("nan", (double)NAN);
+  TEST_ASSERT(!p.hasFields());
 
   TEST_END();
 }
