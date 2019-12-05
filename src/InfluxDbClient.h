@@ -38,8 +38,8 @@ class Point {
     // Adds string tag 
     void addTag(String name, String value);
     // Add field with various types
-    void addField(String name, float value)         { putField(name, String(value)); }
-    void addField(String name, double value)        { putField(name, String(value)); }
+    void addField(String name, float value)         { if(!isnan(value)) putField(name, String(value)); }
+    void addField(String name, double value)        { if(!isnan(value)) putField(name, String(value)); }
     void addField(String name, char value)          { putField(name, String(value)); }
     void addField(String name, unsigned char value) { putField(name, String(value)+"i"); }
     void addField(String name, int value)           { putField(name, String(value)+"i"); }
