@@ -48,6 +48,7 @@ void setup() {
   //tests 
   testPoint();
   testFailedWrites();
+  testTimestamp();
   testRetryOnFailedConnection();
   testBufferOverwriteBatchsize1();
   testBufferOverwriteBatchsize5();
@@ -550,6 +551,74 @@ void testFailedWrites() {
   TEST_ASSERTM(lines[11].indexOf(",25")>0,lines[11]);
   delete [] lines;
 
+  
+  TEST_END();
+  deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
+
+void testTimestamp() {
+  TEST_INIT("testTimestamp");
+  
+  InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL,INFLUXDB_CLIENT_TESTING_ORG,INFLUXDB_CLIENT_TESTING_BUC,INFLUXDB_CLIENT_TESTING_TOK);
+  client.setWriteOptions(WritePrecision::S, 1, 5);
+  //test with no batching
+  TEST_ASSERT(client.validateConnection());
+  uint32_t timestamp;
+  for(int i=0;i<20;i++) {
+    Point *p = createPoint("test1");
+    timestamp = time(nullptr);
+    switch(i%4) {
+      case 0:
+        p->setTime(timestamp);
+        break;
+      case 1: {
+          String ts = String(timestamp);
+          p->setTime(ts);
+        }
+        break;
+      case 2:
+        p->setTime(WritePrecision::S);
+        break;
+      //let other be set automatically
+    }
+    p->addField("index", i);
+    TEST_ASSERTM(client.writePoint(*p), String("i=")+i);
+    delete p;
+  }
+  int count;
+  String query = "";
+  String q = client.queryString(query);
+  String *lines = getLines(q,count);
+  TEST_ASSERT(count == 21); //20 points+header
+  for(int i=1;i<count;i++) {
+    int partsCount;
+    String *parts = getParts(lines[i],',', partsCount);
+    TEST_ASSERTM(partsCount==11, String(i) + ":" + lines[i]); //1measurement,4tags,5fields, 1timestamp
+    parts[10].trim();
+    TEST_ASSERTM(parts[10].length()==10, String(i) + ":" + lines[i]);
+    delete [] parts;
+  }
+  delete [] lines;
+    deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+
+  client.setWriteOptions(WritePrecision::NoTime, 2, 5);
+  //test with no batching
+  for(int i=0;i<20;i++) {
+    Point *p = createPoint("test1");
+    p->addField("index", i);
+    TEST_ASSERTM(client.writePoint(*p), String("i=")+i);
+    delete p;
+  }
+  q = client.queryString(query);
+  lines = getLines(q,count);
+  TEST_ASSERT(count == 21); //20 points+header
+  for(int i=1;i<count;i++) {
+    int partsCount;
+    String *parts = getParts(lines[i],',', partsCount);
+    TEST_ASSERTM(partsCount==10, String(i) + ":" + lines[i]); //1measurement,4tags,5fields
+    delete [] parts;
+  }
+  delete [] lines;
   
   TEST_END();
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
