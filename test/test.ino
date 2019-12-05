@@ -122,7 +122,7 @@ void testPoint() {
   delete [] parts;
 
 
-  TEST_END("testPoint");
+  TEST_END();
 }
 
 void testRetryOnFailedConnection() {
@@ -151,7 +151,7 @@ void testRetryOnFailedConnection() {
   String q = clientOk.queryString(query);
   TEST_ASSERT(countLines(q) == 4); //3 points+header
   
-  TEST_END("testRetryOnFailedConnection");
+  TEST_END();
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
@@ -190,7 +190,7 @@ void testBufferOverwriteBatchsize1() {
   TEST_ASSERT(lines[5].indexOf(",12")>0);
   delete [] lines;
   
-  TEST_END("testBufferOverwriteBatchsize1");
+  TEST_END();
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
@@ -256,7 +256,7 @@ void testBufferOverwriteBatchsize5() {
   TEST_ASSERT(lines[5].indexOf(",4")>0);
   delete [] lines;
  
-  TEST_END("testBufferOverwriteBatchsize4");
+  TEST_END();
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
@@ -330,7 +330,7 @@ void testServerTempDownBatchsize5() {
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
  
   
-  TEST_END("testServerTempDownBatchsize5");
+  TEST_END();
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
@@ -494,7 +494,7 @@ void testRetriesOnServerOverload() {
   TEST_ASSERT(lines[39].indexOf(",49")>0);
   delete [] lines;
 
-  TEST_END("testRetriesOnServerOverload");
+  TEST_END();
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
 
