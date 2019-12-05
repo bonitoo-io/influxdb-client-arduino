@@ -41,13 +41,13 @@ void setup() {
   WiFi.setAutoConnect(true);
   wifiMulti.addAP(INFLUXDB_CLIENT_TESTING_SSID,INFLUXDB_CLIENT_TESTING_PASS);
 
-
   Serial.println();
   
   initInet();
 
   //tests 
   testPoint();
+  testFailedWrites();
   testRetryOnFailedConnection();
   testBufferOverwriteBatchsize1();
   testBufferOverwriteBatchsize5();
@@ -217,6 +217,8 @@ void testBufferOverwriteBatchsize5() {
   p->addField("index", 27);
   TEST_ASSERT(client.writePoint(*p));
   TEST_ASSERT(client.isBufferEmpty());
+    //flushing of empty buffer is ok
+  TEST_ASSERT(client.flushBuffer());
 
   String query = "select";
   String q = client.queryString(query);
@@ -494,6 +496,61 @@ void testRetriesOnServerOverload() {
   TEST_ASSERT(lines[39].indexOf(",49")>0);
   delete [] lines;
 
+  TEST_END();
+  deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+}
+
+void testFailedWrites() {
+  TEST_INIT("testFailedWrites");
+  
+  InfluxDBClient client(INFLUXDB_CLIENT_TESTING_URL,INFLUXDB_CLIENT_TESTING_ORG,INFLUXDB_CLIENT_TESTING_BUC,INFLUXDB_CLIENT_TESTING_TOK);
+  client.setWriteOptions(WritePrecision::NoTime, 1, 5);
+  //test with no batching
+  TEST_ASSERT(client.validateConnection());
+  for(int i=0;i<20;i++) {
+    Point *p = createPoint("test1");
+    if(!(i % 5)) {
+        p->addTag("direction",i>10?"500":"400");
+    }
+    p->addField("index", i);
+    TEST_ASSERTM(client.writePoint(*p)==(i%5!=0), String("i=")+i);
+    delete p;
+  }
+  int count;
+  String query = "";
+  String q = client.queryString(query);
+  String *lines = getLines(q,count);
+  TEST_ASSERT(count == 17); //16 points+header
+  TEST_ASSERTM(lines[1].indexOf(",1")>0,lines[1]);
+  TEST_ASSERTM(lines[5].indexOf(",6")>0,lines[5]);
+  TEST_ASSERTM(lines[10].indexOf(",12")>0,lines[10]);
+  TEST_ASSERTM(lines[16].indexOf(",19")>0,lines[16]);
+  delete [] lines;
+  deleteAll(INFLUXDB_CLIENT_TESTING_URL);
+  
+  //test with batching
+  client.setWriteOptions(WritePrecision::NoTime, 5, 20);
+  for(int i=0;i<30;i++) {
+    Point *p = createPoint("test1");
+    if(!(i % 10)) {
+        p->addTag("direction",i>15?"500":"400");
+    }
+    p->addField("index", i);
+    //i == 4,14,24 should fail
+    TEST_ASSERTM(client.writePoint(*p)==((i-4)%10!=0), String("i=")+i);
+    delete p;
+  }
+
+  q = client.queryString(query);
+  lines = getLines(q,count);
+  //3 batches should be skipped
+  TEST_ASSERT(count == 16); //15 points+header
+  TEST_ASSERTM(lines[1].indexOf(",5")>0,lines[1]);
+  TEST_ASSERTM(lines[6].indexOf(",15")>0,lines[6]);
+  TEST_ASSERTM(lines[11].indexOf(",25")>0,lines[11]);
+  delete [] lines;
+
+  
   TEST_END();
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 }
