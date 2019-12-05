@@ -155,7 +155,6 @@ function parsePoints(data) {
                 }
                 point.fields[keyval[0]] = value;
             }
-            point.timestamp = "";
             if(parts.length>2) {
                 point.timestamp = parts[2];
             }
