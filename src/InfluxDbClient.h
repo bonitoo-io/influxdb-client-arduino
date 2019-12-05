@@ -149,7 +149,7 @@ class InfluxDBClient {
     // Cached full query url
     String _queryUrl;
     // Points timestamp precision. 
-    WritePrecision _precision = WritePrecision::NoTime;
+    WritePrecision _writePrecision = WritePrecision::NoTime;
     // Number of points that will be written to the databases at once. 
     // Default 1 (immediate write, no batching)
     uint16_t _batchSize = 1;

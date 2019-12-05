@@ -174,15 +174,15 @@ InfluxDBClient::~InfluxDBClient() {
 
 void InfluxDBClient::setUrls() {
     _writeUrl = _serverUrl + "/api/v2/write?org=" + _org + "&bucket=" + _bucket;
-    if(_precision != WritePrecision::NoTime) {
-        _writeUrl += String("&precision=") + precisionToString(_precision);
+    if(_writePrecision != WritePrecision::NoTime) {
+        _writeUrl += String("&precision=") + precisionToString(_writePrecision);
     }
     _queryUrl = _serverUrl + "/api/v2/query?org=" + _org;
 }
 
 void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSize, uint16_t bufferSize, uint16_t flushInterval, bool preserveConnection) {
-    if(_precision != precision) {
-        _precision = precision;
+    if(_writePrecision != precision) {
+        _writePrecision = precision;
         setUrls();
     }
     if(batchSize > 0) {
@@ -212,6 +212,9 @@ void InfluxDBClient::resetBuffer() {
 
 bool InfluxDBClient::writePoint(Point & point) {
     if (point.hasFields()) {
+        if(_writePrecision != WritePrecision::NoTime && !point.hasTime()) {
+            point.setTime(_writePrecision);
+        }
         String line = point.toLineProtocol();
         return writeRecord(line);
     }
