@@ -42,13 +42,21 @@ app.post('/api/v2/write', (req,res) => {
                         res.status(503).send("Server overloaded"); 
                         break;
                     case '503-2':
+                        console.log('Return');
                         res.status(503).send("Server overloaded"); 
                         break;
                     case 'delete-all':
-                        console.log('Deleteting points');
                         pointsdb = [];
                         res.status(204).end(); 
-                        break;                        
+                        break; 
+                    case '400':
+                        points = [];
+                        res.status(400).send("bad request");
+                        break;
+                    case '500':
+                        points = [];
+                        res.status(500).send("internal server error");
+                        break;
                 }
                 points.shift();
             }
@@ -56,10 +64,15 @@ app.post('/api/v2/write', (req,res) => {
             points.forEach((item, index) => {
                 pointsdb.push(item);
             })
-            res.status(204).end();
+            if(res.statusCode < 299) {
+                res.status(204).end();  
+            }
         } else {
             res.status(204).end();
         }
+    }
+    if(res.statusCode != 204) {
+        console.log('Responded with ' + res.statusCode);
     }
 })
 
