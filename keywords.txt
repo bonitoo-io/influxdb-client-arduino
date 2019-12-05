@@ -6,7 +6,6 @@ Point		     KEYWORD1
 InfluxDBClient 	 KEYWORD1
 
 # Methods and Functions (KEYWORD2)
-
 addTag 	                KEYWORD2
 addField                KEYWORD2
 setTime	 	            KEYWORD2
@@ -14,17 +13,21 @@ clearFields	            KEYWORD2
 clearTags	            KEYWORD2
 hasFields	            KEYWORD2
 hasTags	                KEYWORD2
+hasTime                 KEYWORD2
 toLineProtocol          KEYWORD2
 setWriteOptions         KEYWORD2
 validateConnection      KEYWORD2
 writeRecord             KEYWORD2
 writePoint              KEYWORD2
-queryString             KEYWORD2
+query                   KEYWORD2
 flushBuffer             KEYWORD2
 isBufferFull            KEYWORD2
 isBufferEmpty           KEYWORD2
 checkBuffer             KEYWORD2
-getLastHTTPStatusCode   KEYWORD2
+getLastStatusCode       KEYWORD2
+resetBuffer             KEYWORD2
+getLastErrorMessage     KEYWORD2
+getServerUrl            KEYWORD2
 
 
 # Constants (LITERAL1)
