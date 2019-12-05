@@ -259,7 +259,7 @@ bool InfluxDBClient::flushBuffer() {
     }
     char *data;
     int size;
-    bool success = false;
+    bool success = true;
     // send all batches, It could happen there was long network outage and buffer is full
     while(data = prepareBatch(size)) {
         INFLUXDB_CLIENT_DEBUG("[D] Writing batch, size %d\n", size);
@@ -268,7 +268,7 @@ bool InfluxDBClient::flushBuffer() {
         // retry on unsuccessfull connection or retryable status codes
         bool retry = statusCode < 0 || statusCode == 429 || statusCode == 503;
         success = statusCode == 204;
-        // advance even on (not likely) failure 
+        // advance even on message failure (4xx != 429) or server failure (5xx != 503) 
         if(success || !retry) {
             _lastFlushed = millis()/1000;
             _batchPointer += size;
@@ -276,7 +276,7 @@ bool InfluxDBClient::flushBuffer() {
             if(_batchPointer >= _bufferSize) {
                 // restart _batchPointer in ring buffer from start
                 _batchPointer = _batchPointer - _bufferSize;
-                // we reached buffer size, that means buffer was full an
+                // we reached buffer size, that means buffer was full and now lower ceiling 
                 _bufferCeiling = _bufferPointer;
             }
         } else {
