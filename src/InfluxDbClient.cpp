@@ -424,7 +424,7 @@ static const char QueryDialect[] PROGMEM = "\
 \"commentPrefix\": \"#\"\
 }}";
 
-String InfluxDBClient::queryString(String &fluxQuery) {
+String InfluxDBClient::query(String &fluxQuery) {
     if(_lastRetryAfter > 0 && (millis()-_lastRequestTime)/1000 < _lastRetryAfter) {
         // retry after period didn't run out yet
         return "";

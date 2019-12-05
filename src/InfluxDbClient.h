@@ -115,7 +115,7 @@ class InfluxDBClient {
     bool writePoint(Point& point);
     // Sends Flux query and returns raw JSON formatted response
     // Return empty string in case of error
-    String queryString(String &fluxQuery);
+    String query(String &fluxQuery);
     // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
     // Returns true if successful, false in case of any error 
     bool flushBuffer();

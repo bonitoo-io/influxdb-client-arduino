@@ -163,7 +163,7 @@ void testRetryOnFailedConnection() {
   delete p;
   TEST_ASSERT(clientOk.isBufferEmpty());
   String query = "select";
-  String q = clientOk.queryString(query);
+  String q = clientOk.query(query);
   TEST_ASSERT(countLines(q) == 4); //3 points+header
   
   TEST_END();
@@ -194,7 +194,7 @@ void testBufferOverwriteBatchsize1() {
   TEST_ASSERT(client.isBufferEmpty());
 
   String query = "select";
-  String q = client.queryString(query);
+  String q = client.query(query);
   int count;
   String *lines = getLines(q,count);
   TEST_ASSERTM(count == 6, String("6 != "+count));    //5 points+header
@@ -236,7 +236,7 @@ void testBufferOverwriteBatchsize5() {
   TEST_ASSERT(client.flushBuffer());
 
   String query = "select";
-  String q = client.queryString(query);
+  String q = client.query(query);
   int count;
   String *lines = getLines(q, count);
   TEST_ASSERT(count == 13); //12 points+header
@@ -256,14 +256,14 @@ void testBufferOverwriteBatchsize5() {
     delete p;
   }
   TEST_ASSERT(!client.isBufferEmpty());
-  q = client.queryString(query);
+  q = client.query(query);
   TEST_ASSERT(countLines(q) ==0);
 
   p = createPoint("test1");
   p->addField("index", 4);
   TEST_ASSERT(client.writePoint(*p));
   TEST_ASSERT(client.isBufferEmpty());
-  q = client.queryString(query);
+  q = client.query(query);
   lines = getLines(q, count);
   TEST_ASSERT(count == 6);//5 points+header
   TEST_ASSERT(lines[1].indexOf(",0")>0);
@@ -291,7 +291,7 @@ void testServerTempDownBatchsize5() {
   }
   TEST_ASSERT(client.isBufferEmpty());
   String query = "select";
-  String q = client.queryString(query);
+  String q = client.query(query);
   TEST_ASSERT(countLines(q) == 16); //15 points+header
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
   
@@ -313,7 +313,7 @@ void testServerTempDownBatchsize5() {
   p->addField("index", 15);
   TEST_ASSERT(client.writePoint(*p));
   TEST_ASSERT(client.isBufferEmpty());
-  q = client.queryString(query);
+  q = client.query(query);
   TEST_ASSERT(countLines(q) == 17); //16 points+header
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 
@@ -333,7 +333,7 @@ void testServerTempDownBatchsize5() {
   waitServer(client, true);
 
   TEST_ASSERT(client.flushBuffer());
-  q = client.queryString(query);
+  q = client.query(query);
   int count;
   String *lines = getLines(q,count);
   TEST_ASSERT(count == 21); //20 points+header
@@ -365,7 +365,7 @@ void testRetriesOnServerOverload() {
   }
   TEST_ASSERT(client.isBufferEmpty());
   String query = "select";
-  String q = client.queryString(query);
+  String q = client.query(query);
   TEST_ASSERT(countLines(q) == 61); //60 points+header
   deleteAll(INFLUXDB_CLIENT_TESTING_URL);
 
@@ -396,7 +396,7 @@ void testRetriesOnServerOverload() {
   TEST_ASSERT(!client.isBufferEmpty());
   TEST_ASSERT(client.flushBuffer());
   TEST_ASSERT(client.isBufferEmpty());
-  q = client.queryString(query);
+  q = client.query(query);
   int count;
   String *lines = getLines(q,count);
   TEST_ASSERT(count == 40); //39 points+header
@@ -432,7 +432,7 @@ void testRetriesOnServerOverload() {
   TEST_ASSERT(!client.isBufferEmpty());
   TEST_ASSERT(client.flushBuffer());
   TEST_ASSERT(client.isBufferEmpty());
-  q = client.queryString(query);
+  q = client.query(query);
   lines = getLines(q,count);
   TEST_ASSERT(count == 40); //39 points+header
   TEST_ASSERT(lines[1].indexOf(",11")>0);
@@ -467,7 +467,7 @@ void testRetriesOnServerOverload() {
   TEST_ASSERT(!client.isBufferEmpty());
   TEST_ASSERT(client.flushBuffer());
   TEST_ASSERT(client.isBufferEmpty());
-  q = client.queryString(query);
+  q = client.query(query);
   TEST_ASSERT(countLines(q) == 51); //50 points+header
   lines = getLines(q,count);
   TEST_ASSERT(count == 51); //50 points+header
@@ -504,7 +504,7 @@ void testRetriesOnServerOverload() {
   TEST_ASSERT(client.flushBuffer());
   TEST_ASSERT(client.isBufferEmpty());
   
-  q = client.queryString(query);
+  q = client.query(query);
   lines = getLines(q,count);
   TEST_ASSERT(count == 40); //39 points+header
   TEST_ASSERT(lines[1].indexOf(",11")>0);
@@ -533,7 +533,7 @@ void testFailedWrites() {
   }
   int count;
   String query = "";
-  String q = client.queryString(query);
+  String q = client.query(query);
   String *lines = getLines(q,count);
   TEST_ASSERT(count == 17); //16 points+header
   TEST_ASSERTM(lines[1].indexOf(",1")>0,lines[1]);
@@ -556,7 +556,7 @@ void testFailedWrites() {
     delete p;
   }
 
-  q = client.queryString(query);
+  q = client.query(query);
   lines = getLines(q,count);
   //3 batches should be skipped
   TEST_ASSERT(count == 16); //15 points+header
@@ -601,7 +601,7 @@ void testTimestamp() {
   }
   int count;
   String query = "";
-  String q = client.queryString(query);
+  String q = client.query(query);
   String *lines = getLines(q,count);
   TEST_ASSERT(count == 21); //20 points+header
   for(int i=1;i<count;i++) {
@@ -623,7 +623,7 @@ void testTimestamp() {
     TEST_ASSERTM(client.writePoint(*p), String("i=")+i);
     delete p;
   }
-  q = client.queryString(query);
+  q = client.query(query);
   lines = getLines(q,count);
   TEST_ASSERT(count == 21); //20 points+header
   for(int i=1;i<count;i++) {
