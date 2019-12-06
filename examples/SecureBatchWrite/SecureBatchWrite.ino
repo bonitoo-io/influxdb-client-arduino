@@ -19,10 +19,11 @@
   #include <ESP8266WiFiMulti.h>
   ESP8266WiFiMulti wifiMulti;
   #define DEVICE "ESP8266"
+  #define WIFI_AUTH_OPEN ENC_TYPE_NONE
 #endif
 
-#include "InfluxDbClient.h"
-#include "InfluxDbCloud.h"
+#include <InfluxDbClient.h
+#include <InfluxDbCloud.h>
 
 // WiFi AP SSID
 #define WIFI_SSID "SSID"
