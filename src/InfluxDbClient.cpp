@@ -48,7 +48,7 @@ void Point::addTag(String name, String value) {
     }
     _tags += escapeKey(name);
     _tags += '=';
-    _tags += escapeValue(value.c_str());
+    _tags += escapeKey(value);
 }
 
 void Point::addField(String name, const char *value) { 
@@ -512,6 +512,24 @@ static String escapeKey(String key) {
 }
 
 static String escapeValue(const char *value) {
+    String ret;
+    int len = strlen_P(value);
+    ret.reserve(len+5); //5 is estimate of max chars needs to escape,
+    for(int i=0;i<len;i++)
+    {
+        switch (value[i])
+        {
+            case '\\':
+            case '\"':
+                ret += '\\';
+                break;
+        }
+
+        ret += value[i];
+    }
+    return ret;
+}
+static String escapeTagValue(const char *value) {
     String ret;
     int len = strlen_P(value);
     ret.reserve(len+5); //5 is estimate of max chars needs to escape,
