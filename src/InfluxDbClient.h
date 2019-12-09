@@ -16,8 +16,8 @@
 #error AxTLS doesn't work
 #endif
 
- // Enum WritePrecision defines constants for specifying InfluxDB write prcecision
- enum class WritePrecision  {
+// Enum WritePrecision defines constants for specifying InfluxDB write prcecision
+enum class WritePrecision  {
   // Specifyies that points has no timestamp (default) 
   NoTime = 0,
   // Seconds

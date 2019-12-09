@@ -45,6 +45,7 @@
 //  Central Europe: "CET-1CEST,M3.5.0,M10.5.0/3"
 #define TZ_INFO  "CET-1CEST,M3.5.0,M10.5.0/3"
 
+
 // InfluxDB client instance with preconfigured InfluxCloud certificate
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
 
@@ -113,6 +114,9 @@ void loop() {
   // Print what are we exactly writing
   Serial.print("Writing: ");
   Serial.println(sensor.toLineProtocol());
+  // If no Wifi signal, try to reconnect it
+  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+    Serial.println("Wifi connection lost");
   // Write point
   if(!client.writePoint(sensor)) {
     Serial.print("InfluxDB write failed: ");

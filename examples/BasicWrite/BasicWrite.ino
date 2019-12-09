@@ -33,6 +33,7 @@
 // InfluxDB v2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
 #define INFLUXDB_BUCKET "bucket"
 
+
 // InfluxDB client instance
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
 
@@ -74,6 +75,9 @@ void loop() {
   // Print what are we exactly writing
   Serial.print("Writing: ");
   Serial.println(sensor.toLineProtocol());
+  // If no Wifi signal, try to reconnect it
+  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+    Serial.println("Wifi connection lost");
   // Write point
   if(!client.writePoint(sensor)) {
     Serial.print("InfluxDB write failed: ");

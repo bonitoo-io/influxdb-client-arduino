@@ -48,6 +48,7 @@
 #define MAX_BATCH_SIZE 10
 #define WRITE_BUFFER_SIZE 30
 
+
 // InfluxDB client instance with preconfigured InfluxCloud certificate
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
 
@@ -163,6 +164,10 @@ void loop() {
 
   // Clear fields for next usage. Tags remain the same.
   sensorStatus.clearFields();
+
+  // If no Wifi signal, try to reconnect it
+  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+    Serial.println("Wifi connection lost");
 
   // End of the iteration - force write of all the values into InfluxDB as single transaction
   Serial.println("Flushing data into InfluxDB");
