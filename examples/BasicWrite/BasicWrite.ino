@@ -18,7 +18,7 @@
   #define DEVICE "ESP8266"
 #endif
 
-#include <InfluxDbClient.h">
+#include <InfluxDbClient.h>
 
 // WiFi AP SSID
 #define WIFI_SSID "ssid"
