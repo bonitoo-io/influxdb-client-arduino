@@ -411,19 +411,6 @@ int InfluxDBClient::postData(const char *data) {
     return _lastStatusCode;
 }
 
-static const char QueryDialect[] PROGMEM = "\
-\"dialect\": {\
-\"annotations\": [\
-\"datatype\",\
-\"group\",\
-\"default\"\
-],\
-\"dateTimeFormat\": \"RFC3339\",\
-\"header\": true,\
-\"delimiter\": \",\",\
-\"commentPrefix\": \"#\"\
-}}";
-
 String InfluxDBClient::query(String &fluxQuery) {
     if(_lastRetryAfter > 0 && (millis()-_lastRequestTime)/1000 < _lastRetryAfter) {
         // retry after period didn't run out yet
@@ -437,22 +424,19 @@ String InfluxDBClient::query(String &fluxQuery) {
         INFLUXDB_CLIENT_DEBUG("[E] begin failed\n");
         return "";
     }
-    _httpClient.addHeader(F("Content-Type"), F("application/json"));
+    _httpClient.addHeader(F("Content-Type"), F("application/vnd.flux"));
     
-    String body = "{\"type\":\"flux\",\"query\":\"";
-    body += escapeJSONString(fluxQuery) + "\",";
-    body += FPSTR(QueryDialect);
-
-    INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", body.c_str());
+    INFLUXDB_CLIENT_DEBUG("[D] JSON query:\n%s\n", fluxQuery.c_str());
     
     preRequest();
 
-    _lastStatusCode = _httpClient.POST(body);
+    _lastStatusCode = _httpClient.POST(fluxQuery);
     
     postRequest(200);
     String queryResult;
     if(_lastStatusCode == 200) {
         queryResult = _httpClient.getString();
+        queryResult.trim();
         INFLUXDB_CLIENT_DEBUG("[D] Response:\n%s\n", queryResult.c_str());
     }
 
@@ -544,43 +528,6 @@ static String escapeTagValue(const char *value) {
         }
 
         ret += value[i];
-    }
-    return ret;
-}
-
-static String escapeJSONString(String &value) {
-    String ret;
-    int d = 0;
-    int i,from = 0;
-    while((i = value.indexOf('"',from)) > -1) {
-        d++;
-        if(i == value.length()-1) {
-            break;
-        }
-        from = i+1;
-    }
-    ret.reserve(value.length()+d); //most probably we will escape just double quotes
-    for (char c: value)
-    {
-        switch (c)
-        {
-            case '"': ret += "\\\""; break;
-            case '\\': ret += "\\\\"; break;
-            case '\b': ret += "\\b"; break;
-            case '\f': ret += "\\f"; break;
-            case '\n': ret += "\\n"; break;
-            case '\r': ret += "\\r"; break;
-            case '\t': ret += "\\t"; break;
-            default:
-                if ('\x00' <= c && c <= '\x1f') {
-                    ret += "\\u";
-                    char buf[3 + 8 * sizeof(unsigned int)];
-                    sprintf(buf,  "\\u%04u", c);
-                    ret += buf;
-                } else {
-                    ret += c;
-                }
-        }
     }
     return ret;
 }
