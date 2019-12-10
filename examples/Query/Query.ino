@@ -97,25 +97,41 @@ void setup() {
 }
 
 void loop() {
-  printQuery("max");
-  printQuery("mean");
-  printQuery("min");
-  
-  //Wait 10s
-  Serial.println("Wait 10s");
-  delay(10000);
+    // Get max RSSI
+    printQuery("max");
+    // Get mean RSSI
+    printQuery("mean");
+    // Get min RSSI
+    printQuery("min");
+
+    //Wait 10s
+    Serial.println("Wait 10s");
+    delay(10000);
 }
 
+// printQuery queries db for aggregated RSSI value computed by given InfluxDB selector function (max, mean, min)
+// Prints composed query, raw query result and parsed values
 void printQuery(String selectorFunction) {
     // Construct a Flux query
-    // Query will find RSSI for each connected WiFi network with this device computed by given selector function
+    // Query will find RSSI for last 24 hours for each connected WiFi network with this device computed by given selector function
     String query = "from(bucket: \""  INFLUXDB_BUCKET  "\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"wifi_status\" and r._field == \"rssi\"";
     query += "and r.device == \"" DEVICE "\")";
     query +="|> " + selectorFunction + "()";
 
-    Serial.println("Quering with:");
+    Serial.print("Querying with: ");
     Serial.println(query);
+
     String resultSet = client.query(query);
+    if(resultSet == "") {
+        if(client.wasLastQuerySuccessful()) {
+            Serial.println("Empty results set");
+        } else {
+            Serial.print("InfluxDB query failed: ");
+            Serial.println(client.getLastErrorMessage());
+        }
+        return;
+    }
+
     Serial.println("Query raw result:");
     Serial.println(resultSet);
     
@@ -153,7 +169,10 @@ void printQuery(String selectorFunction) {
     delete [] lines;
 }
 
-// Finds index of item in array
+// String utils
+
+// findItem finds index of item in array of lenght len
+// Returns index of string item in the array if found, otherwise -1
 int findItem(String *array, int len, String item) {
   for(int i=0;i<len;i++) {
       if(item == array[i]) {
@@ -163,6 +182,8 @@ int findItem(String *array, int len, String item) {
   return -1;
 }
 
+// countParts computes to how many pieces string str will be split by separator character
+// Returns number of parts  
 int countParts(String &str, char separator) {
   int lines = 0;
   int i,from = 0;
@@ -170,7 +191,7 @@ int countParts(String &str, char separator) {
     ++lines;
     from = i+1;
   }
-  // try last part
+  // try last part, from the last separator to the end of the string
   if(from < str.length()) {
       String s = str.substring(from);
       s.trim();
@@ -181,35 +202,34 @@ int countParts(String &str, char separator) {
   return lines;
 }
 
-// Utitility function for splitting string str by separator char
+// getParts function  splitts string str by separator char
+// Returns array of Strings which must deleted after use and number of items in the count
 String *getParts(String &str, char separator, int &count) {
-//Serial.printf("Parsing for %c:\n'%s'\n", separator, str.c_str());
   count = countParts(str, separator);
-  //Serial.printf(" Count %d:\n", count);
-  String *ret = new String[count];
+  String *parts = new String[count];
   int i,from = 0,p=0;
   while((i = str.indexOf(separator, from)) >= 0) {
-    ret[p] = str.substring(from,i);
-    ret[p++].trim();
+    parts[p] = str.substring(from,i);
+    parts[p++].trim();
     from = i+1;
   }
-  // try the last part
+  // try the last part, from the last separator to the end of the string
   if(from < str.length()) {
       String s = str.substring(from);
       s.trim();
-     // Serial.printf("  Last part: '%s',len: %d\n",s.c_str(), s.length());
       if(s.length() > 0) {
-        ret[p] = s;
+        parts[p] = s;
       }
   }
-  return ret;
+  return parts;
 }
 
-
+// getLines splits string str containing multiple lines into arrays of lines
 String *getLines(String &str, int &count) {
   return getParts(str, '\n', count);
 }
 
+// getColumns splits string str containing comma separated strings into arrays of such strings 
 String *getColumns(String &str, int &count) {
   return getParts(str, ',', count);
 }
