@@ -114,7 +114,7 @@ class InfluxDBClient {
     // Returns true if successful, false in case of any error 
     bool writePoint(Point& point);
     // Sends Flux query and returns raw JSON formatted response
-    // Return empty string in case of error
+    // Return raw query response in the form of CSV table. Empty string can mean that query hasn't found anything or an error. Check getLastStatusCode() for 200 
     String query(String &fluxQuery);
     // Writes all points in buffer, with respect to the batch size, and in case of success clears the buffer.
     // Returns true if successful, false in case of any error 
@@ -132,12 +132,17 @@ class InfluxDBClient {
     int getLastStatusCode() const { return _lastStatusCode;  }
     // Returns last response when operation failed
     String getLastErrorMessage() const { return _lastErrorResponse; }
+    // Returns server url
     String getServerUrl() const { return _serverUrl; }
+    // Returns true if last query request has succeeded. Handy for distingushing empty result and error
+    bool wasLastQuerySuccessful() { return _lastStatusCode == 200; }
   protected:
     // Checks params and sets up security, if needed
     void init();
-    void postRequest(int expectedStatusCode);
+    // Sets request params
     void preRequest();
+    // Handles response
+    void postRequest(int expectedStatusCode);
   private:
     // Connection info
     String _serverUrl;
