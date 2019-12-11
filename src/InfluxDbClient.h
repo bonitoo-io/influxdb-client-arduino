@@ -81,6 +81,9 @@ class Point {
 // Automaticaly retries failed writes during next write, if server is overloaded.
 class InfluxDBClient {
   public:
+    // Creates InfluxDBClient unfocnfigure instance. 
+    // Call to setConnectionParams to set up client is required
+    InfluxDBClient();
     // Creates InfluxDBClient instance for unsecured connection
     // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:9999)
     // org - name of the organization, which bucket belongs to    
@@ -94,7 +97,7 @@ class InfluxDBClient {
     // authToken - InfluxDB 2 authorization token
     // serverCert - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint. Should be stored in PROGMEM.
     InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert);
-    // Destructor. Cleans wifiClient
+    // Clears instance.
     ~InfluxDBClient();
     // precision - timestamp precision of written data
     // batchSize - number of points that will be written to the databases at once. Default 1 - writes immediately
@@ -104,8 +107,15 @@ class InfluxDBClient {
     //                 Data are written either when number of points in buffer reaches batchSize or time of  
     // preserveConnection - true if HTTP connection should be kept open. Usable for often writes.
     void setWriteOptions(WritePrecision precision, uint16_t batchSize = 1, uint16_t bufferSize = 5, uint16_t flushInterval = 60, bool preserveConnection = true); 
+    // Sets InfluxDBClient connection parameters
+    // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:9999)
+    // org - name of the organization, which bucket belongs to 
+    // bucket - name of the bucket to write data into
+    // authToken - InfluxDB 2 authorization token
+    // serverCert - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
+    void setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert = nullptr);
     // Validates connection parameters by conecting to server
-    // Returns true if successful, false in case of any erro
+    // Returns true if successful, false in case of any error
     bool validateConnection();
     // Writes record in InfluxDB line protocol format to buffer
     // Returns true if successful, false in case of any error 
@@ -137,12 +147,15 @@ class InfluxDBClient {
     // Returns true if last query request has succeeded. Handy for distingushing empty result and error
     bool wasLastQuerySuccessful() { return _lastStatusCode == 200; }
   protected:
-    // Checks params and sets up security, if needed
-    void init();
+    // Checks params and sets up security, if needed.
+    // Returns true in case of success, otherwise false
+    bool init();
     // Sets request params
     void preRequest();
     // Handles response
     void postRequest(int expectedStatusCode);
+    // Cleans instances
+    void clean();
   private:
     // Connection info
     String _serverUrl;
