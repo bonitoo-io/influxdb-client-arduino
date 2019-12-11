@@ -142,10 +142,6 @@ void loop() {
 
             // Write point into buffer - low priority measures
             client.writePoint(sensorNetworks);
-
-            // Clear tags and fields for the next use
-            sensorNetworks.clearTags();
-            sensorNetworks.clearFields();
         }
     } else
         Serial.println("Wifi networks reporting skipped due to communication issues");
