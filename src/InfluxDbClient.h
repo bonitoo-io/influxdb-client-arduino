@@ -51,8 +51,8 @@ class Point {
     void addField(String name, const char *value);
     // Set timestamp to `now()` and store it in specified precision. Date and time must be already set. See `configTime` in API
     void setTime(WritePrecision writePrecision);
-    // Set timestamp in desired precision (specified in InfluxDBClient) since epoch (1.1.1970 00:00:00)
-    void setTime(unsigned long timestamp);
+    // Set timestamp in seconds since epoch (1.1.1970). Precision should be set to `S` 
+    void setTime(unsigned long seconds);
     // Set timestamp in desired precision (specified in InfluxDBClient) since epoch (1.1.1970 00:00:00)
     void setTime(String timestamp);
     // Clear all fields. Usefull for reusing point  
@@ -133,7 +133,7 @@ class InfluxDBClient {
     bool isBufferFull() const  { return _bufferCeiling == _bufferSize; };
     // Returns true if buffer is empty. Usefull when going to sleep and check if there is sth in write buffer (it can happens when batch size if bigger than 1). Call flushBuffer() then.
     bool isBufferEmpty() const { return _bufferCeiling == 0; };
-    // Checks points buffer status and flushes if number of points reached batch size or flush interval run out
+    // Checks points buffer status and flushes if number of points reached batch size or flush interval runs out
     // Returns true if successful, false in case of any error 
     bool checkBuffer();
     // Wipes out buffered points
