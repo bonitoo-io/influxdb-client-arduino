@@ -58,122 +58,122 @@ Point sensorStatus("wifi_status");
 int iterations = 0;
 
 void timeSync() {
-    // Synchronize UTC time with NTP servers
-    // Accurate time is necessary for certificate validaton and writing in batches
-    configTime(0, 0, "pool.ntp.org", "time.nis.gov");
-    // Set timezone
-    setenv("TZ", TZ_INFO, 1);
+  // Synchronize UTC time with NTP servers
+  // Accurate time is necessary for certificate validaton and writing in batches
+  configTime(0, 0, "pool.ntp.org", "time.nis.gov");
+  // Set timezone
+  setenv("TZ", TZ_INFO, 1);
 
-    // Wait till time is synced
-    Serial.print("Syncing time");
-    int i = 0;
-    while (time(nullptr) < 1000000000ul && i < 100) {
-        Serial.print(".");
-        delay(100);
-        i++;
-    }
-    Serial.println();
+  // Wait till time is synced
+  Serial.print("Syncing time");
+  int i = 0;
+  while (time(nullptr) < 1000000000ul && i < 100) {
+    Serial.print(".");
+    delay(100);
+    i++;
+  }
+  Serial.println();
 
-    // Show time
-    time_t tnow = time(nullptr);
-    Serial.print("Synchronized time: ");
-    Serial.println(String(ctime(&tnow)));
+  // Show time
+  time_t tnow = time(nullptr);
+  Serial.print("Synchronized time: ");
+  Serial.println(String(ctime(&tnow)));
 }
 
 void setup() {
-    Serial.begin(115200);
+  Serial.begin(115200);
 
-    // Setup wifi
-    WiFi.mode(WIFI_STA);
-    wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
+  // Setup wifi
+  WiFi.mode(WIFI_STA);
+  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
 
-    Serial.print("Connecting to wifi");
-    while (wifiMulti.run() != WL_CONNECTED) {
-        Serial.print(".");
-        delay(100);
-    }
-    Serial.println();
+  Serial.print("Connecting to wifi");
+  while (wifiMulti.run() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(100);
+  }
+  Serial.println();
 
-    // Add tags
-    sensorStatus.addTag("device", DEVICE);
-    sensorStatus.addTag("SSID", WiFi.SSID());
+  // Add tags
+  sensorStatus.addTag("device", DEVICE);
+  sensorStatus.addTag("SSID", WiFi.SSID());
 
-    // Sync time for certificate validation
-    timeSync();
+  // Sync time for certificate validation
+  timeSync();
 
-    // Check server connection
-    if (client.validateConnection()) {
-        Serial.print("Connected to InfluxDB: ");
-        Serial.println(client.getServerUrl());
-    } else {
-        Serial.print("InfluxDB connection failed: ");
-        Serial.println(client.getLastErrorMessage());
-    }
+  // Check server connection
+  if (client.validateConnection()) {
+    Serial.print("Connected to InfluxDB: ");
+    Serial.println(client.getServerUrl());
+  } else {
+    Serial.print("InfluxDB connection failed: ");
+    Serial.println(client.getLastErrorMessage());
+  }
 
-    //Enable messages batching and retry buffer
-    client.setWriteOptions(WRITE_PRECISION, MAX_BATCH_SIZE, WRITE_BUFFER_SIZE);
+  //Enable messages batching and retry buffer
+  client.setWriteOptions(WRITE_PRECISION, MAX_BATCH_SIZE, WRITE_BUFFER_SIZE);
 }
 
 void loop() {
-    // Sync time for batching once per hour
-    if (iterations++ >= 360) {
-        timeSync();
-        iterations = 0;
+  // Sync time for batching once per hour
+  if (iterations++ >= 360) {
+    timeSync();
+    iterations = 0;
+  }
+
+  //Report networks (low priority data) just in case we successfully wrote the previous batch
+  if (client.isBufferEmpty()) {
+    // Report all the detected wifi networks
+    int networks = WiFi.scanNetworks();
+    //Set identical time for the whole network scan
+    time_t tnow = time(nullptr);
+    for (int i = 0; i < networks; i++) {
+      Point sensorNetworks("wifi_networks");
+      sensorNetworks.addTag("device", DEVICE);
+      sensorNetworks.addTag("SSID", WiFi.SSID(i));
+      sensorNetworks.addTag("channel", String(WiFi.channel(i)));
+      sensorNetworks.addTag("open", String(WiFi.encryptionType(i) == WIFI_AUTH_OPEN));
+      sensorNetworks.addField("rssi", WiFi.RSSI(i));
+      sensorNetworks.setTime(tnow);  //set the time
+
+      // Print what are we exactly writing
+      Serial.print("Writing: ");
+      Serial.println(sensorNetworks.toLineProtocol());
+
+      // Write point into buffer - low priority measures
+      client.writePoint(sensorNetworks);
     }
+  } else
+    Serial.println("Wifi networks reporting skipped due to communication issues");
 
-    //Report networks (low priority data) just in case we successfully wrote the previous batch
-    if (client.isBufferEmpty()) {
-        // Report all the detected wifi networks
-        int networks = WiFi.scanNetworks();
-        //Set identical time for the whole network scan
-        time_t tnow = time(nullptr);
-        for (int i = 0; i < networks; i++) {
-            Point sensorNetworks("wifi_networks");
-            sensorNetworks.addTag("device", DEVICE);
-            sensorNetworks.addTag("SSID", WiFi.SSID(i));
-            sensorNetworks.addTag("channel", String(WiFi.channel(i)));
-            sensorNetworks.addTag("open", String(WiFi.encryptionType(i) == WIFI_AUTH_OPEN));
-            sensorNetworks.addField("rssi", WiFi.RSSI(i));
-            sensorNetworks.setTime(tnow);  //set the time
+  // Report RSSI of currently connected network
+  sensorStatus.setTime(time(nullptr));
+  sensorStatus.addField("rssi", WiFi.RSSI());
 
-            // Print what are we exactly writing
-            Serial.print("Writing: ");
-            Serial.println(sensorNetworks.toLineProtocol());
+  // Print what are we exactly writing
+  Serial.print("Writing: ");
+  Serial.println(sensorStatus.toLineProtocol());
 
-            // Write point into buffer - low priority measures
-            client.writePoint(sensorNetworks);
-        }
-    } else
-        Serial.println("Wifi networks reporting skipped due to communication issues");
+  // Write point into buffer - high priority measure
+  client.writePoint(sensorStatus);
 
-    // Report RSSI of currently connected network
-    sensorStatus.setTime(time(nullptr));
-    sensorStatus.addField("rssi", WiFi.RSSI());
+  // Clear fields for next usage. Tags remain the same.
+  sensorStatus.clearFields();
 
-    // Print what are we exactly writing
-    Serial.print("Writing: ");
-    Serial.println(sensorStatus.toLineProtocol());
+  // If no Wifi signal, try to reconnect it
+  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+    Serial.println("Wifi connection lost");
 
-    // Write point into buffer - high priority measure
-    client.writePoint(sensorStatus);
+  // End of the iteration - force write of all the values into InfluxDB as single transaction
+  Serial.println("Flushing data into InfluxDB");
+  if (!client.flushBuffer()) {
+    Serial.print("InfluxDB flush failed: ");
+    Serial.println(client.getLastErrorMessage());
+    Serial.print("Full buffer: ");
+    Serial.println(client.isBufferFull() ? "Yes" : "No");
+  }
 
-    // Clear fields for next usage. Tags remain the same.
-    sensorStatus.clearFields();
-
-    // If no Wifi signal, try to reconnect it
-    if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
-        Serial.println("Wifi connection lost");
-
-    // End of the iteration - force write of all the values into InfluxDB as single transaction
-    Serial.println("Flushing data into InfluxDB");
-    if (!client.flushBuffer()) {
-        Serial.print("InfluxDB flush failed: ");
-        Serial.println(client.getLastErrorMessage());
-        Serial.print("Full buffer: ");
-        Serial.println(client.isBufferFull() ? "Yes" : "No");
-    }
-
-    //Wait 10s
-    Serial.println("Wait 10s");
-    delay(10000);
+  //Wait 10s
+  Serial.println("Wait 10s");
+  delay(10000);
 }
