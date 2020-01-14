@@ -66,7 +66,7 @@ class Point {
      // True if a point contains timestamp
     bool hasTime() const   { return _timestamp.length() > 0; }
     // Creates line protocol
-    String toLineProtocol();
+    String toLineProtocol() const;
   private:
     String _tags;
     String _fields;
@@ -95,8 +95,8 @@ class InfluxDBClient {
     // org - name of the organization, which bucket belongs to 
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
-    // serverCert - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint. Should be stored in PROGMEM.
-    InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert);
+    // certInfo - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint. Should be stored in PROGMEM.
+    InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo);
     // Clears instance.
     ~InfluxDBClient();
     // precision - timestamp precision of written data
@@ -113,7 +113,10 @@ class InfluxDBClient {
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
     // serverCert - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
-    void setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert = nullptr);
+    void setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo = nullptr);
+    // Sets InfluxDBClient connection parameters for conention to InfuxDB 1
+    // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:9999)
+    void setConnectionParamsV1(const char *serverUrl, const char *db, const char *user = nullptr, const char *password = nullptr, const char *certInfo = nullptr);
     // Validates connection parameters by conecting to server
     // Returns true if successful, false in case of any error
     bool validateConnection();
@@ -156,12 +159,15 @@ class InfluxDBClient {
     void postRequest(int expectedStatusCode);
     // Cleans instances
     void clean();
-  private:
+  protected:
     // Connection info
     String _serverUrl;
     String _bucket;
     String _org;
     String _authToken;
+    // V1 authetication
+    String _user;
+    String _password;
     // Cached full write url
     String _writeUrl;
     // Cached full query url
@@ -198,6 +204,8 @@ class InfluxDBClient {
     WiFiClient *_wifiClient = nullptr;
     // Certificate info
     const char *_certInfo = nullptr;
+    // Version of InfluxDB 1 or 2
+    uint8_t _dbVersion = 2;
 #ifdef  ESP8266
   BearSSL::X509List *_cert = nullptr;   
 #endif
@@ -207,6 +215,7 @@ class InfluxDBClient {
     int postData(const char *data);
     char *prepareBatch(int &size);
     void setUrls();
+    void reserveBuffer(int size);
 #ifdef INFLUXDB_CLIENT_TESTING
 public:
     String *getBuffer() { return _pointsBuffer; }

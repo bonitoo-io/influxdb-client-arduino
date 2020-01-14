@@ -66,7 +66,7 @@ void Point::putField(String name, String value) {
     _fields += value;
 }
 
-String Point::toLineProtocol() {
+String Point::toLineProtocol() const {
     String line =  _measurement + "," + _tags + " " + _fields;
     if(_timestamp != "") {
         line += " " + _timestamp;
@@ -102,6 +102,7 @@ void  Point::setTime(WritePrecision precision) {
 void  Point::setTime(unsigned long timestamp) {
     _timestamp = String(timestamp);
 }
+
 void  Point::setTime(String timestamp) {
     _timestamp = timestamp;
 }
@@ -126,19 +127,30 @@ InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const cha
     _pointsBuffer = new String[_bufferSize];
 }
 
-void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert) {
+void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db, const char *user, const char *password, const char *certInfo) {
+    clean();
+    _serverUrl = serverUrl;
+    _bucket = db;
+    _user = user;
+    _password = password;
+    _certInfo = certInfo;
+    _dbVersion = 1;
+}
+
+void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo) {
     clean();
     _serverUrl = serverUrl;
     _bucket = bucket;
     _org = org;
     _authToken = authToken;
-    _certInfo = serverCert;
-    // init will be called later during a first connection to server
+    _certInfo = certInfo;
+    _dbVersion = 2;
   }
 
 
 bool InfluxDBClient::init() {
-    if(_serverUrl.length() == 0 || _org.length() == 0 || _bucket.length() == 0 || _authToken.length() == 0) {
+    if(_serverUrl.length() == 0 || (_dbVersion == 2 && (_org.length() == 0 || _bucket.length() == 0 || _authToken.length() == 0))) {
+         INFLUXDB_CLIENT_DEBUG("[E] Invalid parameters\n");
         return false;
     }
     if(_serverUrl.endsWith("/")) {
@@ -202,11 +214,20 @@ void InfluxDBClient::clean() {
 }
 
 void InfluxDBClient::setUrls() {
-    _writeUrl = _serverUrl + "/api/v2/write?org=" + _org + "&bucket=" + _bucket;
+    if(_dbVersion == 2) {
+        _writeUrl = _serverUrl + "/api/v2/write?org=" + _org + "&bucket=" + _bucket;
+        _queryUrl = _serverUrl + "/api/v2/query?org=" + _org;
+    } else {
+        _writeUrl = _serverUrl + "/write?db=" + _bucket;
+        _queryUrl = _serverUrl + "/api/v2/query?db=" + _bucket;
+        if(_user.length() > 0 && _password.length() > 0) {
+           _writeUrl += "&u=" + _user + "&p=" + _password;
+        }
+    }
     if(_writePrecision != WritePrecision::NoTime) {
         _writeUrl += String("&precision=") + precisionToString(_writePrecision);
     }
-    _queryUrl = _serverUrl + "/api/v2/query?org=" + _org;
+    
 }
 
 void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSize, uint16_t bufferSize, uint16_t flushInterval, bool preserveConnection) {
@@ -237,6 +258,17 @@ void InfluxDBClient::resetBuffer() {
     _bufferPointer = 0;
     _batchPointer = 0;
     _bufferCeiling = 0;
+}
+
+void InfluxDBClient::reserveBuffer(int size) {
+    if(size > _bufferSize) {
+        String *newBuffer = new String[size];
+        for(int i=0;i<_bufferCeiling; i++) {
+            newBuffer[i] = _pointsBuffer[i];
+        }
+        delete [] _pointsBuffer;
+        _pointsBuffer = newBuffer;
+    }
 }
 
 bool InfluxDBClient::writePoint(Point & point) {
@@ -410,8 +442,9 @@ bool InfluxDBClient::validateConnection() {
 }
 
 void InfluxDBClient::preRequest() {
-    _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
-    
+    if(_authToken.length() > 0) {
+        _httpClient.addHeader(F("Authorization"), "Token " + _authToken);
+    }
     const char * headerKeys[] = {RetryAfter} ;
     _httpClient.collectHeaders(headerKeys, 1);
 }
