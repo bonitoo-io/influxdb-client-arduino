@@ -4,6 +4,8 @@
 WritePrecision   KEYWORD1
 Point		     KEYWORD1
 InfluxDBClient 	 KEYWORD1
+InfluxData	     KEYWORD1
+Influxdb	     KEYWORD1
 
 # Methods and Functions (KEYWORD2)
 addTag 	                KEYWORD2
@@ -28,7 +30,9 @@ getLastStatusCode       KEYWORD2
 resetBuffer             KEYWORD2
 getLastErrorMessage     KEYWORD2
 getServerUrl            KEYWORD2
-
+setDb	                KEYWORD2
+prepare	                KEYWORD2
+write	                KEYWORD2
 
 # Constants (LITERAL1)
 NoTime  LITERAL1
