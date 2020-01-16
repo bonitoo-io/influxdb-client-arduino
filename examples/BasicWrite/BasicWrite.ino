@@ -1,6 +1,6 @@
 /**
  * Basic Write Example code for InfluxDBClient library for Arduino
- * Data can be immediately seen in a InfluxDB 2 UI: wifi_status measurement
+ * Data can be immediately seen in a InfluxDB UI: wifi_status measurement
  * Enter WiFi and InfluxDB parameters below
  *
  * Measures signal level of the actually connected WiFi network
@@ -24,7 +24,9 @@ ESP8266WiFiMulti wifiMulti;
 #define WIFI_SSID "ssid"
 // WiFi password
 #define WIFI_PASSWORD "password"
-// InfluxDB v2 server url, e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries)
+// InfluxDB  server url. Don't use localhost, always server name or ip address.
+// For InfluxDB v2 e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries), 
+// For InfluxDB v1 e.g. http://192.168.1.48:8086
 #define INFLUXDB_URL "influxdb-url"
 // InfluxDB v2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
 #define INFLUXDB_TOKEN "toked-id"
@@ -32,9 +34,13 @@ ESP8266WiFiMulti wifiMulti;
 #define INFLUXDB_ORG "org"
 // InfluxDB v2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
 #define INFLUXDB_BUCKET "bucket"
+// InfluxDB v1 database name 
+//#define INFLUXDB_DB_NAME "database"
 
 // InfluxDB client instance
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
+// InfluxDB client instance for InfluxDB v1
+//InfluxDBClient client(INFLUXDB_URL, INFLUXDB_DB_NAME);
 
 // Data point
 Point sensor("wifi_status");
