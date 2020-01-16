@@ -1,9 +1,32 @@
 /**
  * 
+ * InfluxDBClient.cpp: InfluxDB Client for Arduino
  * 
- */
+ * MIT License
+ * 
+ * Copyright (c) 2018-2020 Tobias Schürg
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+*/
 #include "InfluxDbClient.h"
 
+// Uncomment bellow in case of a problem and rebuild sketch
 //#define INFLUXDB_CLIENT_DEBUG
 
 #ifdef INFLUXDB_CLIENT_DEBUG
@@ -116,15 +139,29 @@ void Point:: clearTags() {
     _tags = "";
 }
 
-InfluxDBClient::InfluxDBClient():InfluxDBClient(nullptr,nullptr,nullptr,nullptr,nullptr) { 
+InfluxDBClient::InfluxDBClient() { 
+    _pointsBuffer = new String[_bufferSize];
+}
+
+InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *db):InfluxDBClient() {
+    setConnectionParamsV1(serverUrl, db);
 }
 
 InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken):InfluxDBClient(serverUrl, org, bucket, authToken, nullptr) { 
 }
 
-InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert) {
+InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert):InfluxDBClient() {
     setConnectionParams(serverUrl, org, bucket, authToken, serverCert);
-    _pointsBuffer = new String[_bufferSize];
+}
+
+void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo) {
+    clean();
+    _serverUrl = serverUrl;
+    _bucket = bucket;
+    _org = org;
+    _authToken = authToken;
+    _certInfo = certInfo;
+    _dbVersion = 2;
 }
 
 void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db, const char *user, const char *password, const char *certInfo) {
@@ -136,17 +173,6 @@ void InfluxDBClient::setConnectionParamsV1(const char *serverUrl, const char *db
     _certInfo = certInfo;
     _dbVersion = 1;
 }
-
-void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo) {
-    clean();
-    _serverUrl = serverUrl;
-    _bucket = bucket;
-    _org = org;
-    _authToken = authToken;
-    _certInfo = certInfo;
-    _dbVersion = 2;
-  }
-
 
 bool InfluxDBClient::init() {
     if(_serverUrl.length() == 0 || (_dbVersion == 2 && (_org.length() == 0 || _bucket.length() == 0 || _authToken.length() == 0))) {
@@ -221,7 +247,9 @@ void InfluxDBClient::setUrls() {
         _writeUrl = _serverUrl + "/write?db=" + _bucket;
         _queryUrl = _serverUrl + "/api/v2/query?db=" + _bucket;
         if(_user.length() > 0 && _password.length() > 0) {
-           _writeUrl += "&u=" + _user + "&p=" + _password;
+            String auth =  "&u=" + _user + "&p=" + _password;
+            _writeUrl += auth;
+            _queryUrl += auth;
         }
     }
     if(_writePrecision != WritePrecision::NoTime) {
@@ -263,11 +291,14 @@ void InfluxDBClient::resetBuffer() {
 void InfluxDBClient::reserveBuffer(int size) {
     if(size > _bufferSize) {
         String *newBuffer = new String[size];
+        INFLUXDB_CLIENT_DEBUG("Resising buffer from %d to %d\n", _bufferSize, size);
         for(int i=0;i<_bufferCeiling; i++) {
             newBuffer[i] = _pointsBuffer[i];
         }
+        
         delete [] _pointsBuffer;
         _pointsBuffer = newBuffer;
+        _bufferSize = size;
     }
 }
 
@@ -421,7 +452,7 @@ bool InfluxDBClient::validateConnection() {
         _lastErrorResponse = FPSTR(UnitialisedMessage);
         return false;
     }
-    String url = _serverUrl + "/ready";
+    String url = _serverUrl + (_dbVersion==2?"/ready":"/ping");
     INFLUXDB_CLIENT_DEBUG("[D] Validating connection to %s\n", url.c_str());
 
     if(!_httpClient.begin(*_wifiClient, url)) {

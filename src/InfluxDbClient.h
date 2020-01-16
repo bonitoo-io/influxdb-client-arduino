@@ -1,5 +1,32 @@
+/**
+ * 
+ * InfluxDBClient.h: InfluxDB Client for Arduino
+ * 
+ * MIT License
+ * 
+ * Copyright (c) 2018-2020 Tobias Schürg
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+*/
 #ifndef _INFLUXDB_CLIENT_H_
 #define _INFLUXDB_CLIENT_H_
+
 
 #include "Arduino.h"
 
@@ -30,8 +57,10 @@ enum class WritePrecision  {
   NS
 };
 
-// Class Point represents InfluxDB point in line protocol.
-// It defines data to be written to InfluxDB.
+/**
+ * Class Point represents InfluxDB point in line protocol.
+ * It defines data to be written to InfluxDB.
+ */
 class Point {
   public:
     Point(String measurement);
@@ -49,7 +78,7 @@ class Point {
     void addField(String name, bool value)          { putField(name,value?"true":"false"); }
     void addField(String name, String value)        { addField(name, value.c_str()); }
     void addField(String name, const char *value);
-    // Set timestamp to `now()` and store it in specified precision. Date and time must be already set. See `configTime` in API
+    // Set timestamp to `now()` and store it in specified precision. Date and time must be already set. See `configTime` in the device API
     void setTime(WritePrecision writePrecision);
     // Set timestamp in seconds since epoch (1.1.1970). Precision should be set to `S` 
     void setTime(unsigned long seconds);
@@ -67,7 +96,7 @@ class Point {
     bool hasTime() const   { return _timestamp.length() > 0; }
     // Creates line protocol
     String toLineProtocol() const;
-  private:
+  protected:
     String _tags;
     String _fields;
     String _measurement;
@@ -75,15 +104,20 @@ class Point {
     // method for formating field into line protocol
     void putField(String name, String value);
 };
-
-// InfluxDBClient handles connection and basic operations for InfluxDB 2
-// It provides write API with ability to write data in batches, retrying failure writes, smart optimization and simple Flux querying
-// Automaticaly retries failed writes during next write, if server is overloaded.
+/**
+ * InfluxDBClient handles connection and basic operations for InfluxDB 2 server
+ * It provides write API with ability to write data in batches, retrying failure writes, smart optimization and simple Flux querying
+ * Automaticaly retries failed writes during next write, if server is overloaded.
+ */
 class InfluxDBClient {
   public:
-    // Creates InfluxDBClient unfocnfigure instance. 
-    // Call to setConnectionParams to set up client is required
+    // Creates InfluxDBClient unconfigured instance. 
+    // Call to setConnectionParams is required to set up client 
     InfluxDBClient();
+    // Creates InfluxDBClient instance for unsecured connection to InfluxDB 1
+    // serverUrl - url of the InfluxDB 1 server (e.g. http://localhost:8086)
+    // db - database name where to store or read data
+    InfluxDBClient(const char *serverUrl, const char *db);
     // Creates InfluxDBClient instance for unsecured connection
     // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:9999)
     // org - name of the organization, which bucket belongs to    
@@ -112,10 +146,14 @@ class InfluxDBClient {
     // org - name of the organization, which bucket belongs to 
     // bucket - name of the bucket to write data into
     // authToken - InfluxDB 2 authorization token
-    // serverCert - InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
+    // serverCert - Optional. InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
     void setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo = nullptr);
-    // Sets InfluxDBClient connection parameters for conention to InfuxDB 1
-    // serverUrl - url of the InfluxDB 2 server (e.g. https//localhost:9999)
+    // Sets parameters for connection to InfuxDB 1
+    // serverUrl - url of the InfluxDB server (e.g. http://localhost:8086)
+    // db - database name where to store or read data
+    // user - Optional. User name, in case of server requires authetication
+    // password - Optional. User password, in case of server requires authetication
+    // certInfo - Optional. InfluxDB server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
     void setConnectionParamsV1(const char *serverUrl, const char *db, const char *user = nullptr, const char *password = nullptr, const char *certInfo = nullptr);
     // Validates connection parameters by conecting to server
     // Returns true if successful, false in case of any error
@@ -164,8 +202,9 @@ class InfluxDBClient {
     String _serverUrl;
     String _bucket;
     String _org;
+    // token authetication
     String _authToken;
-    // V1 authetication
+    // user authetication
     String _user;
     String _password;
     // Cached full write url
@@ -211,10 +250,13 @@ class InfluxDBClient {
 #endif
     // Store retry timeout suggested by server after last request
     int _lastRetryAfter;
-    // internal helper methods
+    // Sends POST request with data in body
     int postData(const char *data);
+    // Prepares batch from data in buffer`
     char *prepareBatch(int &size);
+    // 
     void setUrls();
+    // Ensures buffer has required size
     void reserveBuffer(int size);
 #ifdef INFLUXDB_CLIENT_TESTING
 public:
