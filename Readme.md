@@ -1,12 +1,12 @@
 # InfluxDB Arduino Client
 
-Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing_in_batches), [automatic retrying](#write_retrying) on server backpressure and connection failure.
+Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server backpressure and connection failure.
 
 Of course it allows setting data in various formats, automatically escapes special characters and also offers specifying timestamp in various precisions. 
 
-Library support both [InfluxDB 2](#basic_code_for_influxdb_2) and [InfluxDB 1](#basic_code_for_influxdb_2).
+Library support both [InfluxDB 2](#basic-code-for-influxdb-2) and [InfluxDB 1](#basic-code-for-influxdb-2).
 
-This is a new implementation and API, [original API](#original_api) is still supported. 
+This is a new implementation and API, [original API](#original-api) is still supported. 
 
 ## Basic code for InfluxDB 2
 Using client is very easy. After you've [setup InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and a client instance:
@@ -126,7 +126,7 @@ InfluxDB client for Arduino can write data in batches. A batch is simply a set o
 
 ### Timestamp
 If using batch writes, the timestamp should be employed. Timestamp specifies the time where data was gathered and it is used in the form of a number of seconds (milliseconds, etc) from epoch (1.1.1970) UTC.
-If points have no timestamp assigned, InfluxDB assigns timestamp at the time of writing, which could happen much later than the data has been obtained, because final batch write will happen when the batch is full (or when [flush buffer](#buffer_handling) is forced).
+If points have no timestamp assigned, InfluxDB assigns timestamp at the time of writing, which could happen much later than the data has been obtained, because final batch write will happen when the batch is full (or when [flush buffer](#buffer-handling-and-retrying) is forced).
 
 InfuxDB allows sending timestamp in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino.
 
@@ -174,7 +174,7 @@ For example, if you would like to see updates (on the dashboard or in processing
 
 In case that data should be written in longer periods and gathered data consists of several points batch size should be set to an expected number of points.
 
-To set batch size we use [setWriteOptions](#write_options) method, where second parameter controls batch size:
+To set batch size we use [setWriteOptions](#write-options) method, where second parameter controls batch size:
 ```cpp
 // Enable messages batching
 client.setWriteOptions(WritePrecision::MS, 10);
@@ -195,12 +195,12 @@ if(!client.writePoint(point10)) {
 }
 ```
 
-In case of a number of points is not always the same, set batch size to the maximum number of points and use the `flushBuffer()` method to force writing to DB. See [Buffer Handling](#buffer_handling_and_retrying) for more details.
+In case of a number of points is not always the same, set batch size to the maximum number of points and use the `flushBuffer()` method to force writing to DB. See [Buffer Handling](#buffer-handling-and-retrying) for more details.
 
 ## Buffer Handling and Retrying
 InfluxDB contains an underlying buffer for handling writing in batches and automatic retrying on server backpressure and connection failure.
 
-Its size is controled by the 3rd parameter of [setWriteOptions](#write_options) method:
+Its size is controled by the 3rd parameter of [setWriteOptions](#write-options) method:
 ```cpp
 // Enable messages batching
 client.setWriteOptions(WritePrecision::MS, 10, 30);
