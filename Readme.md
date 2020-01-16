@@ -1,10 +1,14 @@
-# InfluxDB 2 Arduino Client
+# InfluxDB Arduino Client
 
-Simple Arduino client for writing and reading data from [InfluxDB 2](https://v2.docs.influxdata.com/v2.0/), it doesn't matter whether a local server or InfluxDB Cloud. Supports authentication, secure communication over TLS, [batching](#writing_in_batches), [automatic retrying](#write_retrying) on server backpressure and connection failure.
+Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing_in_batches), [automatic retrying](#write_retrying) on server backpressure and connection failure.
 
-![Under Construction](res/under-construction.png "Image by Jose R. Cabello from Pixabay")
+Of course it allows setting data in various formats, automatically escapes special characters and also offers specifying timestamp in various precisions. 
 
-## Basic code
+Library support both [InfluxDB 2](#basic_code_for_influxdb_2) and [InfluxDB 1](#basic_code_for_influxdb_2).
+
+This is a new implementation and API, [original API](#original_api) is still supported. 
+
+## Basic code for InfluxDB 2
 Using client is very easy. After you've [setup InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and a client instance:
 ```cpp
 // InfluxDB v2 server url, e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries)
@@ -38,12 +42,38 @@ And finally we will write data to db:
 client.writePoint(pointDevice);
 ```
 
-Now you will able to see data in the InfluxDB UI. You can use  `Data Explorer` or create a `Dashboard`.
+You will able to see data in the InfluxDB UI now. You can use  `Data Explorer` or create a `Dashboard`.
 
 Complete source code is available in [BasicWrite example](examples/BasicWrite/BasicWrite.ino).
 
+## Basic code for InfluxDB 1
+Use InfluxDB Arduino client for InfluxDB 1 is almost the same. The only difference is that InfluxDB 1 uses _database_ as classic name for data storage instead of bucket and the server is unsecured by default.
+There is just different `InfluxDBClient contructor`. Everything else remains the same.
+
+```cpp
+// InfluxDB server url, e.g. http://192.168.1.48:8086 (don't use localhost, always server name or ip address)
+#define INFLUXDB_URL "influxdb-url"
+// InfluxDB database name 
+#define INFLUXDB_DB_NAME "database"
+
+// Single InfluxDB instance
+InfluxDBClient client(INFLUXDB_URL, INFLUXDB_DB_NAME);
+
+// Define data point with measurement name 'device_status`
+Point pointDevice("device_status");
+// Set tags
+pointDevice.addTag("device", "ESP8266");
+pointDevice.addTag("SSID", WiFi.SSID());
+// Add data
+pointDevice.addField("rssi", WiFi.RSSI());
+pointDevice.addField("uptime", millis());
+
+// Write data
+client.writePoint(pointDevice);
+```
+
 ## Connecting to InfluxDB Cloud 2
-Instead of seting up local InfluxDB 2 server, you can quickly [start with InfluxDB Cloud 2](https://v2.docs.influxdata.com/v2.0/cloud/get-started/) with [Free Plan](https://v2.docs.influxdata.com/v2.0/cloud/pricing-plans/#free-plan).
+Instead of setting up local InfluxDB 2 server, you can quickly [start with InfluxDB Cloud 2](https://v2.docs.influxdata.com/v2.0/cloud/get-started/) with [Free Plan](https://v2.docs.influxdata.com/v2.0/cloud/pricing-plans/#free-plan).
 
 Connecting Arduino client to InfuxDB Cloud server requires few additional steps.
 InfluxDBCloud uses secure communication (https) and we need to tell the client to trust this connection.
@@ -91,8 +121,6 @@ client.writePoint(pointDevice);
 ```
 Complete source code is available in [SecureWrite example](examples/SecureWrite/SecureWrite.ino).
 
-
-
 ## Writing in Batches
 InfluxDB client for Arduino can write data in batches. A batch is simply a set of points that will be sent at once. To create a batch, the client will keep all points until the number of points reaches the batch size and then it will write all points at once to the InfluDB server. This is often more efficient than writing each point separately. 
 
@@ -102,7 +130,7 @@ If points have no timestamp assigned, InfluxDB assigns timestamp at the time of 
 
 InfuxDB allows sending timestamp in various precisions - nanoseconds, microseconds, milliseconds or seconds. The milliseconds precision is usually enough for using on Arduino.
 
-The client has to be configured with time precision. The default is not using the timestamp. The `setWriteOptions` methods allow setting various parameters and one of them is __write precision__:
+The client has to be configured with time precision. The default settings is not using the timestamp. The `setWriteOptions` methods allow setting various parameters and one of them is __write precision__:
 ``` cpp
 // Set write precision to milliseconds. Leave other parameters default.
 client.setWriteOptions(WritePrecision::MS);
@@ -250,3 +278,103 @@ If the query results in an empty result set, the server returns an empty respons
 use `wasLastQuerySuccessful()` method to determine final status.
 
 Complete source code is available in [Query example](examples/Query/Query.ino).
+
+## Troubleshooting
+All db methods return status. `false` means something went wrong. Call `getLastErrorMessage()` to get the error message.
+
+When error message doesn't help to explain the bad behavior, go to the library sources and in the file `src/InfluxDBClient.cpp` uncomment line 30:
+```cpp
+// Uncomment bellow in case of a problem and rebuild sketch
+#define INFLUXDB_CLIENT_DEBUG
+```
+Then upload your sketch again and see the debug output in the Serial Monitor.
+
+If you couldn't solve a problem by yourself, please, post an issue including the debug output
+
+# Original API
+
+
+## Initialization
+```cpp
+ #define INFLUXDB_HOST "192.168.0.32"
+ #define INFLUXDB_PORT "1337"
+ #define INFLUXDB_DATABASE "test"
+ //if used with authentication
+ #define INFLUXDB_USER "user"
+ #define INFLUXDB_PASS "password"
+
+ // connect to WiFi
+
+ Influxdb influx(INFLUXDB_HOST); // port defaults to 8086, use 9999 for v2
+ // or to use a custom port
+ Influxdb influx(INFLUXDB_HOST, INFLUXDB_PORT);
+
+ // set the target database
+ influx.setDb(INFLUXDB_DATABASE);
+ // or use a db with auth
+ influx.setDbAuth(INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASS) // with authentication
+
+// To use the v2.0 InfluxDB
+influx.setVersion(2);
+influx.setOrg("myOrganization");
+influx.setBucket("myBucket");
+influx.setToken("myToken");
+influx.setPort(9999);
+```
+
+## Sending a single measurement
+**Using an InfluxData object:**
+```cpp
+// create a measurement object
+InfluxData measurement ("temperature");
+measurement.addTag("device", d2);
+measurement.addTag("sensor", "dht11");
+measurement.addValue("value", 24.0);
+
+// write it into db
+influx.write(measurement);
+```
+
+**Using raw-data**
+```cpp
+ influx.write("temperature,device=d2,sensor=dht11 value=24.0")
+```
+
+## Write multiple data points at once
+Batching measurements and send them with a single request will result in a much higher performance.
+```cpp
+
+InfluxData measurement1 = readTemperature()
+influx.prepare(measurement1)
+
+InfluxData measurement2 = readLight()
+influx.prepare(measurement2)
+
+InfluxData measurement3 = readVoltage()
+influx.prepare(measurement3)
+
+// writes all prepared measurements with a single request into db.
+boolean success = influx.write();
+```
+
+## Http client error codes
+Internally `ESP8266HTTPClient` is used.
+```C
+/// HTTP client errors
+#define HTTPC_ERROR_CONNECTION_REFUSED  (-1)
+#define HTTPC_ERROR_SEND_HEADER_FAILED  (-2)
+#define HTTPC_ERROR_SEND_PAYLOAD_FAILED (-3)
+#define HTTPC_ERROR_NOT_CONNECTED       (-4)
+#define HTTPC_ERROR_CONNECTION_LOST     (-5)
+#define HTTPC_ERROR_NO_STREAM           (-6)
+#define HTTPC_ERROR_NO_HTTP_SERVER      (-7)
+#define HTTPC_ERROR_TOO_LESS_RAM        (-8)
+#define HTTPC_ERROR_ENCODING            (-9)
+#define HTTPC_ERROR_STREAM_WRITE        (-10)
+#define HTTPC_ERROR_READ_TIMEOUT        (-11)
+...
+```
+See [list of error codes](https://github.com/esp8266/Arduino/blob/cc0bfa04d401810ed3f5d7d01be6e88b9011997f/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h#L44-L55) and [list of http status codes](https://github.com/esp8266/Arduino/blob/cc0bfa04d401810ed3f5d7d01be6e88b9011997f/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h#L60-L120).
+
+## Documentation
+For the documentation see [html/class_influxdb.html](html/class_influxdb.html) (only works locally).
