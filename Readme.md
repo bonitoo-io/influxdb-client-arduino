@@ -164,7 +164,7 @@ Values for some timezones:
 - Japanesse: `JST-9`
 - Pacific Time: `PST8PDT`
 
-We could set the timezone info (DST and UTC offset) also in the first two parameters of the `configTime` method, but there is a [bug on ESP8266](TODO: link) which causes a time behaves as it is in UTC, even UTC offset was specified.
+We could set the timezone info (DST and UTC offset) also in the first two parameters of the `configTime` method, but there is a [bug on ESP8266](https://github.com/esp8266/Arduino/issues/6921) which causes a time behaves as it is in UTC, even UTC offset was specified.
 
 ### Batch Size
 Setting batch size depends on data gathering and DB updating strategy.
