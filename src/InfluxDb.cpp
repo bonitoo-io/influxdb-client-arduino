@@ -35,7 +35,7 @@
 Influxdb::Influxdb(String host, uint16_t port) {
   if(port == 443) {
     // this happens usualy when influxdb is behind fw/proxy. Mostly, when influxdb is switched to https, the port remains the same (8086/9999)
-    // port number shouldn't be qualificator for secure connection, wither scheme or a flag
+    // port number shouldn't be qualificator for secure connection, either scheme or a flag
     _serverUrl = "https://";
   } else {
     _serverUrl = "http://";
@@ -123,7 +123,7 @@ void Influxdb::begin() {
 void Influxdb::prepare(InfluxData data) { 
   ++_preparedPoints;
   if(_batchSize <= _preparedPoints) {
-    // for preparation, batchsize must be greater than number of prepared points, or it will send data
+    // for preparation, batchsize must be greater than number of prepared points, or it will send data right away
     _batchSize = _preparedPoints+1;
     reserveBuffer(2*_batchSize);
   }
