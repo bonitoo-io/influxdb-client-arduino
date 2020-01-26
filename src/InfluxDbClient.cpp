@@ -266,6 +266,10 @@ void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSiz
     if(batchSize > 0) {
         _batchSize = batchSize;
     }
+    if(bufferSize < batchSize) {
+        bufferSize = 2*batchSize;
+        INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", bufferSize);
+    }
     if(_bufferSize > 0 && bufferSize > 0 && _bufferSize != bufferSize) {
         _bufferSize = bufferSize;
         if(_bufferSize <  _batchSize) {
