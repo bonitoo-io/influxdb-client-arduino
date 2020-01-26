@@ -32,7 +32,7 @@ class InfluxData : public Point {
 
   void addValue(String key, float value) { addField(key, value); }
   void addValueString(String key, String value) { addField(key, value); }
-  void setTimestamp(long int seconds) { setTime(seconds); }
+  void setTimestamp(long int seconds) { _timestamp = String(seconds) + "000000000"; }
 
   String toString() const { return toLineProtocol(); }
 };
