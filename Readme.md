@@ -2,22 +2,22 @@
 
 Simple Arduino client for writing and reading data from [InfluxDB](https://www.influxdata.com/products/influxdb-overview/), it doesn't matter whether a local server or InfluxDB Cloud. Library supports authentication, secure communication over TLS, [batching](#writing-in-batches), [automatic retrying](#buffer-handling-and-retrying) on server backpressure and connection failure.
 
-Of course it allows setting data in various formats, automatically escapes special characters and also offers specifying timestamp in various precisions. 
+It also allows setting data in various formats, automatically escapes special characters and offers specifying timestamp in various precisions. 
 
 Library support both [InfluxDB 2](#basic-code-for-influxdb-2) and [InfluxDB 1](#basic-code-for-influxdb-2).
 
 This is a new implementation and API, [original API](#original-api) is still supported. 
 
 ## Basic code for InfluxDB 2
-Using client is very easy. After you've [setup InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and a client instance:
+Using client is very easy. After [seting up InfluxDB 2 server](https://v2.docs.influxdata.com/v2.0/get-started), first define connection parameters and a client instance:
 ```cpp
-// InfluxDB v2 server url, e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries)
+// InfluxDB 2 server url, e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
-// InfluxDB v2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
+// InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
 #define INFLUXDB_TOKEN "token"
-// InfluxDB v2 organization id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
+// InfluxDB 2 organization name or id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
 #define INFLUXDB_ORG "org"
-// InfluxDB v2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
+// InfluxDB 2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
 #define INFLUXDB_BUCKET "bucket"
 
 // Single InfluxDB instance
@@ -36,19 +36,19 @@ pointDevice.addField("rssi", WiFi.RSSI());
 pointDevice.addField("uptime", millis());
 ```
 
-And finally we will write data to db:
+And finally, write data to db:
 ```cpp
 // Write data
 client.writePoint(pointDevice);
 ```
 
-You will able to see data in the InfluxDB UI now. You can use  `Data Explorer` or create a `Dashboard`.
-
 Complete source code is available in [BasicWrite example](examples/BasicWrite/BasicWrite.ino).
 
+Data can be seen in the InfluxDB UI immediately. Use [Data Explorer](https://v2.docs.influxdata.com/v2.0/visualize-data/explore-metrics/) or create a [Dashboard](https://v2.docs.influxdata.com/v2.0/visualize-data/dashboards/).
+
 ## Basic code for InfluxDB 1
-Use InfluxDB Arduino client for InfluxDB 1 is almost the same. The only difference is that InfluxDB 1 uses _database_ as classic name for data storage instead of bucket and the server is unsecured by default.
-There is just different `InfluxDBClient contructor`. Everything else remains the same.
+Using InfluxDB Arduino client for InfluxDB 1 is almost the same as for InfluxDB 2. The only difference is that InfluxDB 1 uses _database_ as classic name for data storage instead of bucket and the server is unsecured by default.
+There is just different `InfluxDBClient contructor` and  `setConnectionParametersV1` method for setting also security params. Everything else remains the same.
 
 ```cpp
 // InfluxDB server url, e.g. http://192.168.1.48:8086 (don't use localhost, always server name or ip address)
@@ -72,20 +72,24 @@ pointDevice.addField("uptime", millis());
 client.writePoint(pointDevice);
 ```
 
+Complete source code is available in [BasicWrite example](examples/BasicWrite/BasicWrite.ino)
+
 ## Connecting to InfluxDB Cloud 2
-Instead of setting up local InfluxDB 2 server, you can quickly [start with InfluxDB Cloud 2](https://v2.docs.influxdata.com/v2.0/cloud/get-started/) with [Free Plan](https://v2.docs.influxdata.com/v2.0/cloud/pricing-plans/#free-plan).
+Instead of setting up local InfluxDB 2 server, it is possible to quickly [start with InfluxDB Cloud 2](https://v2.docs.influxdata.com/v2.0/cloud/get-started/) with [Free Plan](https://v2.docs.influxdata.com/v2.0/cloud/pricing-plans/#free-plan).
 
 Connecting Arduino client to InfuxDB Cloud server requires few additional steps.
 InfluxDBCloud uses secure communication (https) and we need to tell the client to trust this connection.
 Connection parameters are almost the same as above, the only difference is that server URL now points to the InfluxDB Cloud 2, where you've got after you've finished creating InfluxDB Cloud 2 subscription. You will find correct server URL in  `InfluxDB UI -> Load Data -> Client Libraries`.
 ```cpp
-// InfluxDB v2 server or cloud url, e.g. https://eu-central-1-1.aws.cloud2.influxdata.com (Use: InfluxDB UI -> Load Data -> Client Libraries)
+//Include also InfluxClould 2 CA certificate
+#include <InfluxCloud.h>
+// InfluxDB 2 server or cloud url, e.g. https://eu-central-1-1.aws.cloud2.influxdata.com (Use: InfluxDB UI -> Load Data -> Client Libraries)
 #define INFLUXDB_URL "influxdb-url"
-// InfluxDB v2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
+// InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
 #define INFLUXDB_TOKEN "token"
-// InfluxDB v2 organization id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
+// InfluxDB 2 organization name or id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
 #define INFLUXDB_ORG "org"
-// InfluxDB v2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
+// InfluxDB 2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
 #define INFLUXDB_BUCKET "bucket"
 ```
 
@@ -94,6 +98,7 @@ You need to pass an additional parameter to the client constructor, which is a c
 // Single InfluxDB instance
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
 ```
+Read more about [secure connection](#secure-connection).
 
 Additionally, time needs to be synced:
 ```cpp
@@ -103,7 +108,7 @@ configTime(0, 0, "pool.ntp.org", "time.nis.gov");
 // Set timezone
 setenv("TZ", TZ_INFO, 1);
 ```
-Read more about time synchronization in [Configure Time](#configure_time).
+Read more about time synchronization in [Configure Time](#configure-time).
 
 Defining data and writing it to the DB is the same as in the case of [BasicWrite](#basic-code):
 ```cpp
@@ -165,6 +170,22 @@ Values for some timezones:
 - Pacific Time: `PST8PDT`
 
 We could set the timezone info (DST and UTC offset) also in the first two parameters of the `configTime` method, but there is a [bug on ESP8266](https://github.com/esp8266/Arduino/issues/6921) which causes a time behaves as it is in UTC, even UTC offset was specified.
+
+There is also a method, which allows to set timezone string and NTP servers at the same time. It has a different name for ESP8266 and ESP32. It's declaration is following:
+```cpp
+// For ESP8266
+void configTime(const char* tz, const char* server1, const char* server2 = nullptr, const char* server3 = nullptr);
+
+// For ESP32
+void configTzTime(const char* tz, const char* server1, const char* server2 = nullptr, const char* server3 = nullptr); 
+```
+In the example code it would be (for ESP8266):
+```cpp
+// Synchronize UTC time with NTP servers
+// Accurate time is necessary for certificate validaton and writing in batches
+configTime("PST8PDT", "pool.ntp.org", "time.nis.gov");
+```
+The way how the time synchronisation is shown in the library examples is chosen to have the most similar code for both currently supported devices.
 
 ### Batch Size
 Setting batch size depends on data gathering and DB updating strategy.
@@ -242,6 +263,87 @@ Writing points can be controlled via several parameters in `setWriteOptions` met
 | flushInterval | `60` | Maximum time(in seconds) data will be held in buffer before are written to the db |
 | preserveConnection | `false` | true if underlying HTTP connection should be kept open |
 
+## Secure Connection
+Connecting to a secured server requires configuring client to trust the server. This is achieved by providing client with a server certificate, certificate authority certificate or certificate SHA1 fingerprint. 
+
+Note: `HTTPClient` in the current ESP32 arduino SDK (1.0.4) doesn't validate server certificate, so providing server certificate is not necessary. But it is definitely safer to do it, as it can change in the future.
+Other limitation of ESP32 arduino SDK (1.0.4) is that `WiFiClientSecure` doesn't support fingerprint to validate server certificate.
+
+Certificate (in PEM format) or SHA1 fingerprint can be placed in flash memory to save initial RAM:
+```cpp
+// Certificate of Certificate Authority of InfluxData Cloud 2 servers
+const char InfluxDbCloud2CACert[] PROGMEM =  R"EOF( 
+-----BEGIN CERTIFICATE-----
+MIIGEzCCA/ugAwIBAgIQfVtRJrR2uhHbdBYLvFMNpzANBgkqhkiG9w0BAQwFADCB
+iDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0pl
+cnNleSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNV
+BAMTJVVTRVJUcnVzdCBSU0EgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTgx
+MTAyMDAwMDAwWhcNMzAxMjMxMjM1OTU5WjCBjzELMAkGA1UEBhMCR0IxGzAZBgNV
+BAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEYMBYGA1UE
+ChMPU2VjdGlnbyBMaW1pdGVkMTcwNQYDVQQDEy5TZWN0aWdvIFJTQSBEb21haW4g
+VmFsaWRhdGlvbiBTZWN1cmUgU2VydmVyIENBMIIBIjANBgkqhkiG9w0BAQEFAAOC
+AQ8AMIIBCgKCAQEA1nMz1tc8INAA0hdFuNY+B6I/x0HuMjDJsGz99J/LEpgPLT+N
+TQEMgg8Xf2Iu6bhIefsWg06t1zIlk7cHv7lQP6lMw0Aq6Tn/2YHKHxYyQdqAJrkj
+eocgHuP/IJo8lURvh3UGkEC0MpMWCRAIIz7S3YcPb11RFGoKacVPAXJpz9OTTG0E
+oKMbgn6xmrntxZ7FN3ifmgg0+1YuWMQJDgZkW7w33PGfKGioVrCSo1yfu4iYCBsk
+Haswha6vsC6eep3BwEIc4gLw6uBK0u+QDrTBQBbwb4VCSmT3pDCg/r8uoydajotY
+uK3DGReEY+1vVv2Dy2A0xHS+5p3b4eTlygxfFQIDAQABo4IBbjCCAWowHwYDVR0j
+BBgwFoAUU3m/WqorSs9UgOHYm8Cd8rIDZsswHQYDVR0OBBYEFI2MXsRUrYrhd+mb
++ZsF4bgBjWHhMA4GA1UdDwEB/wQEAwIBhjASBgNVHRMBAf8ECDAGAQH/AgEAMB0G
+A1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAbBgNVHSAEFDASMAYGBFUdIAAw
+CAYGZ4EMAQIBMFAGA1UdHwRJMEcwRaBDoEGGP2h0dHA6Ly9jcmwudXNlcnRydXN0
+LmNvbS9VU0VSVHJ1c3RSU0FDZXJ0aWZpY2F0aW9uQXV0aG9yaXR5LmNybDB2Bggr
+BgEFBQcBAQRqMGgwPwYIKwYBBQUHMAKGM2h0dHA6Ly9jcnQudXNlcnRydXN0LmNv
+bS9VU0VSVHJ1c3RSU0FBZGRUcnVzdENBLmNydDAlBggrBgEFBQcwAYYZaHR0cDov
+L29jc3AudXNlcnRydXN0LmNvbTANBgkqhkiG9w0BAQwFAAOCAgEAMr9hvQ5Iw0/H
+ukdN+Jx4GQHcEx2Ab/zDcLRSmjEzmldS+zGea6TvVKqJjUAXaPgREHzSyrHxVYbH
+7rM2kYb2OVG/Rr8PoLq0935JxCo2F57kaDl6r5ROVm+yezu/Coa9zcV3HAO4OLGi
+H19+24rcRki2aArPsrW04jTkZ6k4Zgle0rj8nSg6F0AnwnJOKf0hPHzPE/uWLMUx
+RP0T7dWbqWlod3zu4f+k+TY4CFM5ooQ0nBnzvg6s1SQ36yOoeNDT5++SR2RiOSLv
+xvcRviKFxmZEJCaOEDKNyJOuB56DPi/Z+fVGjmO+wea03KbNIaiGCpXZLoUmGv38
+sbZXQm2V0TP2ORQGgkE49Y9Y3IBbpNV9lXj9p5v//cWoaasm56ekBYdbqbe4oyAL
+l6lFhd2zi+WJN44pDfwGF/Y4QA5C5BIG+3vzxhFoYt/jmPQT2BVPi7Fp2RBgvGQq
+6jG35LWjOhSbJuMLe/0CjraZwTiXWTb2qHSihrZe68Zk6s+go/lunrotEbaGmAhY
+LcmsJWTyXnW0OMGuf1pGg+pRyrbxmRE1a6Vqe8YAsOf4vmSyrcjC8azjUeqkk+B5
+yOGBQMkKW+ESPMFgKuOXwIlCypTPRpgSabuY0MLTDXJLR27lk8QyKGOHQ+SwMj4K
+00u/I5sUKUErmgQfky3xxzlIPK1aEn8=
+-----END CERTIFICATE-----
+)EOF";
+
+// Fingerprint of Certificate Authority of InfluxData Cloud 2 servers
+const char InfluxDbCloud2CAFingerprint[] PROGMEM = "9B:62:0A:63:8B:B1:D2:CA:5E:DF:42:6E:A3:EE:1F:19:36:48:71:1F";
+```
+
+### InfluxDb 2
+There are two ways to set certificate or fingerprint to trust a server:
+ - Use full param constructor
+```cpp
+// InfluxDB client instance with preconfigured InfluxCloud certificate
+InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+```
+- Use `setConnectionParams` method:
+```cpp
+// InfluxDB client instance 
+InfluxDBClient client;
+
+void setup() {
+    // configure client
+    client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+}
+```
+### InfluxDb 1
+
+Use `setConnectionParamsV1` method:
+```cpp
+// InfluxDB client instance 
+InfluxDBClient client;
+
+void setup() {
+    // configure client
+    client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASSWORD, InfluxDbCloud2CACert);
+}
+```
+
 ## Querying
 InfluxDB uses [Flux](https://www.influxdata.com/products/flux/) to process and query data. InfluxDB client for Arduino offers a simple way how to query data with `query` function:
 ```cpp
@@ -280,7 +382,7 @@ use `wasLastQuerySuccessful()` method to determine final status.
 Complete source code is available in [Query example](examples/Query/Query.ino).
 
 ## Troubleshooting
-All db methods return status. `false` means something went wrong. Call `getLastErrorMessage()` to get the error message.
+All db methods return status. Value `false` means something went wrong. Call `getLastErrorMessage()` to get the error message.
 
 When error message doesn't help to explain the bad behavior, go to the library sources and in the file `src/InfluxDBClient.cpp` uncomment line 30:
 ```cpp
@@ -289,12 +391,11 @@ When error message doesn't help to explain the bad behavior, go to the library s
 ```
 Then upload your sketch again and see the debug output in the Serial Monitor.
 
-If you couldn't solve a problem by yourself, please, post an issue including the debug output
+If you couldn't solve a problem by yourself, please, post an issue including the debug output.
 
-# Original API
+## Original API
 
-
-## Initialization
+### Initialization
 ```cpp
  #define INFLUXDB_HOST "192.168.0.32"
  #define INFLUXDB_PORT "1337"
@@ -322,7 +423,7 @@ influx.setToken("myToken");
 influx.setPort(9999);
 ```
 
-## Sending a single measurement
+### Sending a single measurement
 **Using an InfluxData object:**
 ```cpp
 // create a measurement object
@@ -340,7 +441,7 @@ influx.write(measurement);
  influx.write("temperature,device=d2,sensor=dht11 value=24.0")
 ```
 
-## Write multiple data points at once
+### Write multiple data points at once
 Batching measurements and send them with a single request will result in a much higher performance.
 ```cpp
 
@@ -356,25 +457,3 @@ influx.prepare(measurement3)
 // writes all prepared measurements with a single request into db.
 boolean success = influx.write();
 ```
-
-## Http client error codes
-Internally `ESP8266HTTPClient` is used.
-```C
-/// HTTP client errors
-#define HTTPC_ERROR_CONNECTION_REFUSED  (-1)
-#define HTTPC_ERROR_SEND_HEADER_FAILED  (-2)
-#define HTTPC_ERROR_SEND_PAYLOAD_FAILED (-3)
-#define HTTPC_ERROR_NOT_CONNECTED       (-4)
-#define HTTPC_ERROR_CONNECTION_LOST     (-5)
-#define HTTPC_ERROR_NO_STREAM           (-6)
-#define HTTPC_ERROR_NO_HTTP_SERVER      (-7)
-#define HTTPC_ERROR_TOO_LESS_RAM        (-8)
-#define HTTPC_ERROR_ENCODING            (-9)
-#define HTTPC_ERROR_STREAM_WRITE        (-10)
-#define HTTPC_ERROR_READ_TIMEOUT        (-11)
-...
-```
-See [list of error codes](https://github.com/esp8266/Arduino/blob/cc0bfa04d401810ed3f5d7d01be6e88b9011997f/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h#L44-L55) and [list of http status codes](https://github.com/esp8266/Arduino/blob/cc0bfa04d401810ed3f5d7d01be6e88b9011997f/libraries/ESP8266HTTPClient/src/ESP8266HTTPClient.h#L60-L120).
-
-## Documentation
-For the documentation see [html/class_influxdb.html](html/class_influxdb.html) (only works locally).
