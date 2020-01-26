@@ -78,8 +78,8 @@ class Point {
     void addField(String name, bool value)          { putField(name,value?"true":"false"); }
     void addField(String name, String value)        { addField(name, value.c_str()); }
     void addField(String name, const char *value);
-    // Set timestamp to `now()` and store it in specified precision. Date and time must be already set. See `configTime` in the device API
-    void setTime(WritePrecision writePrecision);
+    // Set timestamp to `now()` and store it in specified precision, nanoseconds by default. Date and time must be already set. See `configTime` in the device API
+    void setTime(WritePrecision writePrecision = WritePrecision::NS);
     // Set timestamp in seconds since epoch (1.1.1970). Precision should be set to `S` 
     void setTime(unsigned long seconds);
     // Set timestamp in desired precision (specified in InfluxDBClient) since epoch (1.1.1970 00:00:00)
