@@ -25,21 +25,21 @@ ESP8266WiFiMulti wifiMulti;
 // WiFi password
 #define WIFI_PASSWORD "password"
 // InfluxDB  server url. Don't use localhost, always server name or ip address.
-// For InfluxDB v2 e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries), 
-// For InfluxDB v1 e.g. http://192.168.1.48:8086
+// For InfluxDB 2 e.g. http://192.168.1.48:9999 (Use: InfluxDB UI -> Load Data -> Client Libraries), 
+// For InfluxDB 1 e.g. http://192.168.1.48:8086
 #define INFLUXDB_URL "influxdb-url"
-// InfluxDB v2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
+// InfluxDB 2 server or cloud API authentication token (Use: InfluxDB UI -> Load Data -> Tokens -> <select token>)
 #define INFLUXDB_TOKEN "toked-id"
-// InfluxDB v2 organization id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
+// InfluxDB 2 organization id (Use: InfluxDB UI -> Settings -> Profile -> <name under tile> )
 #define INFLUXDB_ORG "org"
-// InfluxDB v2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
+// InfluxDB 2 bucket name (Use: InfluxDB UI -> Load Data -> Buckets)
 #define INFLUXDB_BUCKET "bucket"
 // InfluxDB v1 database name 
 //#define INFLUXDB_DB_NAME "database"
 
 // InfluxDB client instance
 InfluxDBClient client(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN);
-// InfluxDB client instance for InfluxDB v1
+// InfluxDB client instance for InfluxDB 1
 //InfluxDBClient client(INFLUXDB_URL, INFLUXDB_DB_NAME);
 
 // Data point
@@ -57,6 +57,9 @@ void setup() {
     delay(100);
   }
   Serial.println();
+
+  // Set InfluxDB 1 authentication params
+  //client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_USER, INFLUXDB_PASSWORD);
 
   // Add constant tags - only once
   sensor.addTag("device", DEVICE);
