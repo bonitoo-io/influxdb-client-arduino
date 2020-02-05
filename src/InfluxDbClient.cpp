@@ -26,6 +26,7 @@
 */
 #include "InfluxDbClient.h"
 
+// Uncomment bellow in case of a problem and rebuild sketch
 //#define INFLUXDB_CLIENT_DEBUG
 
 #ifdef INFLUXDB_CLIENT_DEBUG
@@ -88,7 +89,7 @@ void Point::putField(String name, String value) {
     _fields += value;
 }
 
-String Point::toLineProtocol() {
+String Point::toLineProtocol() const {
     String line =  _measurement + "," + _tags + " " + _fields;
     if(_timestamp != "") {
         line += " " + _timestamp;
@@ -137,24 +138,24 @@ void Point:: clearTags() {
     _tags = "";
 }
 
-InfluxDBClient::InfluxDBClient():InfluxDBClient(nullptr,nullptr,nullptr,nullptr,nullptr) { 
+InfluxDBClient::InfluxDBClient() { 
+    _pointsBuffer = new String[_bufferSize];
 }
 
 InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken):InfluxDBClient(serverUrl, org, bucket, authToken, nullptr) { 
 }
 
-InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert) {
+InfluxDBClient::InfluxDBClient(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert):InfluxDBClient() {
     setConnectionParams(serverUrl, org, bucket, authToken, serverCert);
-    _pointsBuffer = new String[_bufferSize];
 }
 
-void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert) {
+void InfluxDBClient::setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *certInfo) {
     clean();
     _serverUrl = serverUrl;
     _bucket = bucket;
     _org = org;
     _authToken = authToken;
-    _certInfo = serverCert;
+    _certInfo = certInfo;
     // init will be called later during a first connection to server
   }
 
@@ -205,11 +206,7 @@ InfluxDBClient::~InfluxDBClient() {
 }
 
 void InfluxDBClient::clean() {
-    // if(_wifiClient) {
-    //     delete _wifiClient;
-    //     _wifiClient = nullptr;
-    // }
-     _wifiClient = nullptr;
+    _wifiClient = nullptr;
 #if defined(ESP8266)     
     if(_cert) {
         delete _cert;
@@ -238,6 +235,10 @@ void InfluxDBClient::setWriteOptions(WritePrecision precision, uint16_t batchSiz
     }
     if(batchSize > 0) {
         _batchSize = batchSize;
+    }
+    if(bufferSize < batchSize) {
+        bufferSize = 2*batchSize;
+        INFLUXDB_CLIENT_DEBUG("[D] Changing buffer size to %d\n", bufferSize);
     }
     if(_bufferSize > 0 && bufferSize > 0 && _bufferSize != bufferSize) {
         _bufferSize = bufferSize;
