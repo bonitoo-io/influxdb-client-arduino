@@ -724,7 +724,7 @@ Point *createPoint(String measurement) {
 void initInet() {
     int i = 0;
     Serial.print("Connecting to wifi ");
-    while ((wifiMulti.run(10000) != WL_CONNECTED) && (i < 100)) {
+    while ((wifiMulti.run() != WL_CONNECTED) && (i < 100)) {
         Serial.print(".");
         delay(300);
         i++;
