@@ -282,7 +282,6 @@ yOGBQMkKW+ESPMFgKuOXwIlCypTPRpgSabuY0MLTDXJLR27lk8QyKGOHQ+SwMj4K
 const char InfluxDbCloud2CAFingerprint[] PROGMEM = "9B:62:0A:63:8B:B1:D2:CA:5E:DF:42:6E:A3:EE:1F:19:36:48:71:1F";
 ```
 
-### InfluxDb 2
 There are two ways to set certificate or fingerprint to trust a server:
  - Use full param constructor
 ```cpp
@@ -297,18 +296,6 @@ InfluxDBClient client;
 void setup() {
     // configure client
     client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
-}
-```
-### InfluxDb 1
-
-Use `setConnectionParamsV1` method:
-```cpp
-// InfluxDB client instance 
-InfluxDBClient client;
-
-void setup() {
-    // configure client
-    client.setConnectionParamsV1(INFLUXDB_URL, INFLUXDB_DATABASE, INFLUXDB_USER, INFLUXDB_PASSWORD, InfluxDbCloud2CACert);
 }
 ```
 
