@@ -103,15 +103,20 @@ class Point {
     // method for formating field into line protocol
     void putField(String name, String value);
 };
-
-// InfluxDBClient handles connection and basic operations for InfluxDB 2
-// It provides write API with ability to write data in batches, retrying failure writes, smart optimization and simple Flux querying
-// Automaticaly retries failed writes during next write, if server is overloaded.
+/**
+ * InfluxDBClient handles connection and basic operations for InfluxDB 2 server
+ * It provides write API with ability to write data in batches, retrying failure writes, smart optimization and simple Flux querying
+ * Automaticaly retries failed writes during next write, if server is overloaded.
+ */
 class InfluxDBClient {
   public:
     // Creates InfluxDBClient unconfigured instance. 
     // Call to setConnectionParams is required to set up client 
     InfluxDBClient();
+    // Creates InfluxDBClient instance for unsecured connection to InfluxDB 1
+    // serverUrl - url of the InfluxDB 1 server (e.g. http://localhost:8086)
+    // db - database name where to store or read data
+    InfluxDBClient(const char *serverUrl, const char *db);
     // Creates InfluxDBClient instance for unsecured connection
     // serverUrl - url of the InfluxDB 2 server (e.g. http://localhost:9999)
     // org - name of the organization, which bucket belongs to    
@@ -142,6 +147,13 @@ class InfluxDBClient {
     // authToken - InfluxDB 2 authorization token
     // serverCert - Optional. InfluxDB 2 server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
     void setConnectionParams(const char *serverUrl, const char *org, const char *bucket, const char *authToken, const char *serverCert = nullptr);
+    // Sets parameters for connection to InfuxDB 1
+    // serverUrl - url of the InfluxDB server (e.g. http://localhost:8086)
+    // db - database name where to store or read data
+    // user - Optional. User name, in case of server requires authetication
+    // password - Optional. User password, in case of server requires authetication
+    // certInfo - Optional. InfluxDB server trusted certificate (or CA certificate) or certificate SHA1 fingerprint.  Should be stored in PROGMEM. Only in case of https connection.
+    void setConnectionParamsV1(const char *serverUrl, const char *db, const char *user = nullptr, const char *password = nullptr, const char *certInfo = nullptr);
     // Validates connection parameters by conecting to server
     // Returns true if successful, false in case of any error
     bool validateConnection();
@@ -191,6 +203,9 @@ class InfluxDBClient {
     String _org;
     // token authetication
     String _authToken;
+    // user authetication
+    String _user;
+    String _password;
     // Cached full write url
     String _writeUrl;
     // Cached full query url
@@ -227,6 +242,8 @@ class InfluxDBClient {
     WiFiClient *_wifiClient = nullptr;
     // Certificate info
     const char *_certInfo = nullptr;
+    // Version of InfluxDB 1 or 2
+    uint8_t _dbVersion = 2;
 #ifdef  ESP8266
   BearSSL::X509List *_cert = nullptr;   
 #endif
@@ -237,6 +254,8 @@ class InfluxDBClient {
     // Prepares batch from data in buffer`
     char *prepareBatch(int &size);
     void setUrls();
+    // Ensures buffer has required size
+    void reserveBuffer(int size);
 #ifdef INFLUXDB_CLIENT_TESTING
 public:
     String *getBuffer() { return _pointsBuffer; }
